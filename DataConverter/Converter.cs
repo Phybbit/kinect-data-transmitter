@@ -291,12 +291,12 @@ namespace DataConverter
              }
         }
 
-        public static void DecodeNewInteractionUser(string data, out int skeletonTrackingId)
+        public static void DecodeNewInteractionUserData(string data, out int skeletonTrackingId)
         {
             skeletonTrackingId = int.Parse(data, CultureInfo.InvariantCulture);
         }
 
-        public static void DecodeInteraction(string data, out int skeletonTrackingId, out HandEventType handEventType, out HandType handType)
+        public static void DecodeInteractionData(string data, out int skeletonTrackingId, out HandEventType handEventType, out HandType handType)
         {
             var tokens = data.Split(' ');
             if (tokens.Length != 3)
@@ -309,7 +309,7 @@ namespace DataConverter
             handType = (HandType)Enum.Parse(typeof(HandType), tokens[2]);
         }
 
-        public static void DecodeInteractionUserLeft(string data, out int skeletonTrackingId)
+        public static void DecodeInteractionUserLeftData(string data, out int skeletonTrackingId)
         {
             skeletonTrackingId = int.Parse(data, CultureInfo.InvariantCulture);
         }
