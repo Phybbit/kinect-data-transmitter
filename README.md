@@ -5,7 +5,7 @@ KinectDataTransmitter is a .net4 project that reads the data from the kinect dev
 It helps to bind both the Microsoft Kinect SDK and Unity without going through wrapping native code.
 
 Currently supported features:
-- Kienct hardware setup (single device)
+- Kinect hardware setup (single device)
 - Kinect face tracking (single user)
 - Skeletal tracking (single user)
 - Access Video and depth maps
