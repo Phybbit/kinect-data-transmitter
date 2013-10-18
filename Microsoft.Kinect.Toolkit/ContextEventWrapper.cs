@@ -11,6 +11,7 @@
 namespace Microsoft.Kinect.Toolkit
 {
     using System;
+    using System.Reflection;
     using System.Threading;
 
     /// <summary>
@@ -90,7 +91,7 @@ namespace Microsoft.Kinect.Toolkit
         {
             if (originalHandler != null)
             {
-                actualHandlers.Add(new ContextHandlerPair(originalHandler, SynchronizationContext.Current));
+                actualHandlers.Add(new ContextHandlerPair(originalHandler, new SynchronizationContextIdentifier(SynchronizationContext.Current)));
             }
         }
 
@@ -100,16 +101,16 @@ namespace Microsoft.Kinect.Toolkit
         /// <param name="originalHandler">The event to remove from the list of handlers.</param>
         public void RemoveHandler(EventHandler<T> originalHandler)
         {
-            SynchronizationContext currentContext = SynchronizationContext.Current;
+            SynchronizationContextIdentifier currentContextId = new SynchronizationContextIdentifier(SynchronizationContext.Current);
             ContextHandlerPair pairToRemove = null;
 
             // Find the first matching pair
             foreach (ContextHandlerPair pair in actualHandlers)
             {
                 EventHandler<T> handler = pair.Handler;
-                SynchronizationContext context = pair.Context;
+                SynchronizationContextIdentifier contextId = pair.ContextId;
 
-                if (currentContext == context && handler == originalHandler)
+                if (currentContextId == contextId && handler == originalHandler)
                 {
                     // Stop on first find
                     pairToRemove = pair;
@@ -138,7 +139,7 @@ namespace Microsoft.Kinect.Toolkit
                 foreach (ContextHandlerPair pair in actualHandlers)
                 {
                     EventHandler<T> handler = pair.Handler;
-                    SynchronizationContext context = pair.Context;
+                    SynchronizationContext context = pair.ContextId.Context;
 
                     if (context == null)
                     {
@@ -204,7 +205,7 @@ namespace Microsoft.Kinect.Toolkit
             /// Gets the associated event handler.
             /// </summary>
             public EventHandler<T> Handler { get; private set; }
-            
+
             /// <summary>
             /// Gets the sending object.
             /// </summary>
@@ -214,6 +215,143 @@ namespace Microsoft.Kinect.Toolkit
             /// Gets the event arguments object.
             /// </summary>
             public T Args { get; private set; }
+        }
+
+        /// <summary> 
+        /// Identifies a SynchronizationContext taking the potential that it is a DispatcherSynchronizationContext 
+        /// into account. While the actual SynchronizationContext instance may change, the internal referenced
+        /// Dispatcher will not, so we use this for determining identity when available.
+        /// </summary>
+        private class SynchronizationContextIdentifier
+        {
+            /// <summary>
+            /// Name of the internal field in DispatcherSynchronizationContext to reflect on when
+            /// comparing SynchronizationContextIdentifiers.
+            /// </summary>
+            private const string DispatcherFieldName = "_dispatcher";
+
+            /// <summary>
+            /// The unqualified name of the DispatcherSynchronizationContext type.
+            /// </summary>
+            private const string DispatcherSynchronizationContextName = "DispatcherSynchronizationContext";
+
+            /// <summary>
+            /// Storage for the Dispatcher object, if one exists.
+            /// </summary>
+            private object dispatcherObject;
+
+            /// <summary>
+            /// Initializes a new instance of the SynchronizationContextIdentifier class.
+            /// </summary>
+            /// <param name="context">The SynchronizationContext to extract identity for.</param>
+            public SynchronizationContextIdentifier(SynchronizationContext context)
+            {
+                Context = context;
+
+                if (!object.ReferenceEquals(context, null))
+                {
+                    Type contextType = context.GetType();
+                    if (DispatcherSynchronizationContextName == contextType.Name)
+                    {
+                        FieldInfo dispatcherField = contextType.GetField(DispatcherFieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+                        if (dispatcherField != null)
+                        {
+                            dispatcherObject = dispatcherField.GetValue(context);
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Gets the SynchronizationContext held by the SynchronizationContextIdentifier.
+            /// </summary>
+            public SynchronizationContext Context { get; private set; }
+
+            /// <summary>
+            /// This method compares two SynchronizationContextIdentifiers.
+            /// </summary>
+            /// <param name="contextId1">The first SynchronizationContextIdentifier to compare.</param>
+            /// <param name="contextId2">The second SynchronizationContextIdentifier to compare.</param>
+            /// <returns>Returns true if they are equal, false otherwise.</returns>
+            public static bool operator ==(SynchronizationContextIdentifier contextId1, SynchronizationContextIdentifier contextId2)
+            {
+                if (object.ReferenceEquals(contextId1, null) || object.ReferenceEquals(contextId2, null))
+                {
+                    return false;
+                }
+
+                return contextId1.Equals(contextId2);
+            }
+
+            /// <summary>
+            /// This method compares two SynchronizationContextIdentifiers.
+            /// </summary>
+            /// <param name="contextId1">The first SynchronizationContextIdentifier to compare.</param>
+            /// <param name="contextId2">The second SynchronizationContextIdentifier to compare.</param>
+            /// <returns>Returns false if they are equal, true otherwise.</returns>
+            public static bool operator !=(SynchronizationContextIdentifier contextId1, SynchronizationContextIdentifier contextId2)
+            {
+                if (object.ReferenceEquals(contextId1, null) || object.ReferenceEquals(contextId2, null))
+                {
+                    return true;
+                }
+
+                return !contextId1.Equals(contextId2);
+            }
+
+            /// <summary>
+            /// Gets the hashcode of the object.
+            /// </summary>
+            /// <returns>Hashcode of the SynchronizationContextIdentifier.</returns>
+            public override int GetHashCode()
+            {
+                if (object.ReferenceEquals(dispatcherObject, null))
+                {
+                    return object.ReferenceEquals(Context, null) ? 0 : Context.GetHashCode();
+                }
+                else
+                {
+                    return dispatcherObject.GetHashCode();
+                }
+            }
+
+            /// <summary>
+            /// Returns whether this SynchronizationContextIdentifier is equivalent to obj.
+            /// </summary>
+            /// <param name="obj">The object to compare for equivalence.</param>
+            /// <returns>True if this SynchronizationContextIdentifier is equivalent to obj, false otherwise.</returns>
+            public override bool Equals(object obj)
+            {
+                SynchronizationContextIdentifier contextId = obj as SynchronizationContextIdentifier;
+
+                if (object.ReferenceEquals(contextId, null))
+                {
+                    return false;
+                }
+
+                return this.Equals(contextId);
+            }
+
+            /// <summary>
+            /// Returns whether this SynchronizationContextIdentifier is equivalent to obj.
+            /// </summary>
+            /// <param name="contextId">The object to compare for equivalence.</param>
+            /// <returns>True if this SynchronizationContextIdentifier is equivalent to obj, false otherwise.</returns>
+            public bool Equals(SynchronizationContextIdentifier contextId)
+            {
+                if (object.ReferenceEquals(contextId, null))
+                {
+                    return false;
+                }
+
+                if (dispatcherObject == null && contextId.dispatcherObject == null)
+                {
+                    // If no Dispatcher is present, just compare the SynchronizationContexts.
+                    return Context == contextId.Context;
+                }
+
+                return dispatcherObject == contextId.dispatcherObject;
+            }
         }
 
         /// <summary>
@@ -226,22 +364,30 @@ namespace Microsoft.Kinect.Toolkit
             /// Initializes a new instance of the ContextHandlerPair class.
             /// </summary>
             /// <param name="handler">The target handler.</param>
-            /// <param name="context">The target context.</param>
-            public ContextHandlerPair(EventHandler<T> handler, SynchronizationContext context)
+            /// <param name="contextId">The target context identifier.</param>
+            public ContextHandlerPair(EventHandler<T> handler, SynchronizationContextIdentifier contextId)
             {
                 Handler = handler;
-                Context = context;
+                ContextId = contextId;
             }
 
             /// <summary>
-            /// Gets the associated synchronization context.
+            /// Gets the associated synchronization context identifier.
             /// </summary>
-            public SynchronizationContext Context { get; private set; }
+            public SynchronizationContextIdentifier ContextId
+            {
+                get;
+                private set;
+            }
 
             /// <summary>
             /// Gets the associated event handler.
             /// </summary>
-            public EventHandler<T> Handler { get; private set; }
+            public EventHandler<T> Handler
+            {
+                get;
+                private set;
+            }
         }
     }
 }
