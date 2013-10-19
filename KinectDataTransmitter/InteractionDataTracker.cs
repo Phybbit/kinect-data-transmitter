@@ -292,25 +292,10 @@ namespace KinectDataTransmitter
                     // Perform hit testing and look for Grip and GripRelease events
                     foreach (var handPointer in info.HandPointers)
                     {
-                        double xUI = handPointer.X * InteractionRegionWidth;
-                        double yUI = handPointer.Y * InteractionRegionHeight;
-                        var uiElement = this.PerformHitTest(xUI, yUI);
-
-                        if (uiElement != null)
-                        {
-                            /*Console.WriteLine(
-                                "User '{0}' has {1} hand within element {2}",
-                                info.SkeletonTrackingId,
-                                handPointer.HandType,
-                                uiElement.Id);*/
-                        }
-
-                        if (handPointer.HandEventType != InteractionHandEventType.None)
-                        {
-                            Console.WriteLine(Converter.EncodeInteraction(info.SkeletonTrackingId,
-                                                                          (HandEventType)handPointer.HandEventType,
-                                                                          (HandType)handPointer.HandType));
-                        }
+                        Console.WriteLine(Converter.EncodeInteraction(info.SkeletonTrackingId,
+                                                                    (HandEventType)handPointer.HandEventType,
+                                                                    (HandType)handPointer.HandType, (float)handPointer.X, (float)handPointer.Y, (float)handPointer.PressExtent,
+                                                                    handPointer.IsActive, handPointer.IsInteractive, handPointer.IsPressed, handPointer.IsTracked));                            
                     }
                 }
 
