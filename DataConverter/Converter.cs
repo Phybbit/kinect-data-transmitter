@@ -202,9 +202,9 @@ namespace DataConverter
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", InteractionNewUserFrameType, skeletonTrackingId);
         }
 
-        public static string EncodeInteraction(int skeletonTrackingId, HandEventType handEventType, HandType handType)
+        public static string EncodeInteraction(int skeletonTrackingId, HandEventType handEventType, HandType handType, float x, float y, float pressExtent, bool isActive, bool isInteractive, bool isPressed, bool isTracked)
         {
-            return string.Format(CultureInfo.InvariantCulture, "{0}|{1} {2} {3}", InteractionFrameType, skeletonTrackingId, handEventType, handType);
+            return string.Format(CultureInfo.InvariantCulture, "{0}|{1} {2} {3} {4} {5} {6} {7} {8} {9} {10}", InteractionFrameType, skeletonTrackingId, handEventType, handType, x, y, pressExtent, isActive, isInteractive, isPressed, isTracked);
         }
 
         public static string EncodeInteractionUserLeft(int id)
@@ -227,36 +227,23 @@ namespace DataConverter
         /// Decodes face tracking data received from the data stream into meaningful values.
         /// </summary>
         /// <param name="data">The data that encodes the facetracking information.</param>
-        /// <param name="au0">Animation unit 0.</param>
-        /// <param name="au1">Animation unit 1.</param>
-        /// <param name="au2">Animation unit 2.</param>
-        /// <param name="au3">Animation unit 3.</param>
-        /// <param name="au4">Animation unit 4.</param>
-        /// <param name="au5">Animation unit 5.</param>
-        /// <param name="posX">Head position (x) in meters.</param>
-        /// <param name="posY">Head position (y) in meters.</param>
-        /// <param name="posZ">Head position (z) in meters.</param>
-        /// <param name="rotX">Head rotation (x - euler angle).</param>
-        /// <param name="rotY">Head rotation (y - euler angle).</param>
-        /// <param name="rotZ">Head rotation (z - euler angle).</param>
-        public static void DecodeFaceTrackingData(string data, out float au0, out float au1, out float au2,
-                                                  out float au3, out float au4, out float au5,
-                                                  out float posX, out float posY, out float posZ,
-                                                  out float rotX, out float rotY, out float rotZ)
+        /// <param name="faceData">FaceTracking data.</param>
+        public static void DecodeFaceTrackingData(string data, out FaceData faceData)
         {
             string[] tokens = data.Split(' ');
-            au0 = float.Parse(tokens[0], CultureInfo.InvariantCulture);
-            au1 = float.Parse(tokens[1], CultureInfo.InvariantCulture);
-            au2 = float.Parse(tokens[2], CultureInfo.InvariantCulture);
-            au3 = float.Parse(tokens[3], CultureInfo.InvariantCulture);
-            au4 = float.Parse(tokens[4], CultureInfo.InvariantCulture);
-            au5 = float.Parse(tokens[5], CultureInfo.InvariantCulture);
-            posX = float.Parse(tokens[6], CultureInfo.InvariantCulture);
-            posY = float.Parse(tokens[7], CultureInfo.InvariantCulture);
-            posZ = float.Parse(tokens[8], CultureInfo.InvariantCulture);
-            rotX = float.Parse(tokens[9], CultureInfo.InvariantCulture);
-            rotY = float.Parse(tokens[10], CultureInfo.InvariantCulture);
-            rotZ = float.Parse(tokens[11], CultureInfo.InvariantCulture);
+            faceData = new FaceData();
+            faceData.Au0 = float.Parse(tokens[0], CultureInfo.InvariantCulture);
+            faceData.Au1 = float.Parse(tokens[1], CultureInfo.InvariantCulture);
+            faceData.Au2 = float.Parse(tokens[2], CultureInfo.InvariantCulture);
+            faceData.Au3 = float.Parse(tokens[3], CultureInfo.InvariantCulture);
+            faceData.Au4 = float.Parse(tokens[4], CultureInfo.InvariantCulture);
+            faceData.Au5 = float.Parse(tokens[5], CultureInfo.InvariantCulture);
+            faceData.PosX = float.Parse(tokens[6], CultureInfo.InvariantCulture);
+            faceData.PosY = float.Parse(tokens[7], CultureInfo.InvariantCulture);
+            faceData.PosZ = float.Parse(tokens[8], CultureInfo.InvariantCulture);
+            faceData.RotX = float.Parse(tokens[9], CultureInfo.InvariantCulture);
+            faceData.RotY = float.Parse(tokens[10], CultureInfo.InvariantCulture);
+            faceData.RotZ = float.Parse(tokens[11], CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -296,17 +283,22 @@ namespace DataConverter
             skeletonTrackingId = int.Parse(data, CultureInfo.InvariantCulture);
         }
 
-        public static void DecodeInteractionData(string data, out int skeletonTrackingId, out HandEventType handEventType, out HandType handType)
+        public static void DecodeInteractionData(string data, out HandPointer handPointer)
         {
             var tokens = data.Split(' ');
-            if (tokens.Length != 3)
-            {
-                throw new Exception("DecodeInteraction received invalid data: " + data);
-            }
 
-            skeletonTrackingId = int.Parse(tokens[0], CultureInfo.InvariantCulture);
-            handEventType = (HandEventType)Enum.Parse(typeof(HandEventType), tokens[1]);
-            handType = (HandType)Enum.Parse(typeof(HandType), tokens[2]);
+            handPointer = new HandPointer();
+            handPointer.UserId = int.Parse(tokens[0], CultureInfo.InvariantCulture);
+            handPointer.HandEventType = (HandEventType)Enum.Parse(typeof(HandEventType), tokens[1]);
+            handPointer.HandType = (HandType)Enum.Parse(typeof(HandType), tokens[2]);
+            handPointer.X = float.Parse(tokens[3], CultureInfo.InvariantCulture);
+            handPointer.Y = float.Parse(tokens[4], CultureInfo.InvariantCulture);
+            handPointer.PressExtent = float.Parse(tokens[5], CultureInfo.InvariantCulture);
+            handPointer.IsActive = bool.Parse(tokens[6]);
+            handPointer.IsInteractive = bool.Parse(tokens[7]);
+            handPointer.IsPressed = bool.Parse(tokens[8]);
+            handPointer.IsTracked = bool.Parse(tokens[9]);
+
         }
 
         public static void DecodeInteractionUserLeftData(string data, out int skeletonTrackingId)
@@ -451,6 +443,20 @@ namespace DataConverter
         Right,
     }
 
+    public struct HandPointer
+    {
+        public int UserId;
+        public HandEventType HandEventType;
+        public HandType HandType;
+        public float X;
+        public float Y;
+        public float PressExtent;
+        public bool IsActive;
+        public bool IsInteractive;
+        public bool IsPressed;
+        public bool IsTracked;
+    }
+
     public struct JointData
     {
         public JointType JointId;
@@ -462,5 +468,21 @@ namespace DataConverter
         public float QuaternionY;
         public float QuaternionZ;
         public float QuaternionW;
+    }
+
+    public struct FaceData
+    {
+        public float Au0;
+        public float Au1;
+        public float Au2;
+        public float Au3;
+        public float Au4;
+        public float Au5;
+        public float PosX;
+        public float PosY;
+        public float PosZ;
+        public float RotX;
+        public float RotY;
+        public float RotZ;
     }
 }
