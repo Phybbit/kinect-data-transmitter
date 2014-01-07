@@ -158,36 +158,33 @@ namespace DataConverter
         /// <param name="rotY">Head rotation (y - euler angle).</param>
         /// <param name="rotZ">Head rotation (z - euler angle).</param>
         /// <returns>The string that encodes the facetracking information.</returns>
-        public static string EncodeFaceTrackingData(float au0, float au1, float au2,
-                                                    float au3, float au4, float au5,
-                                                    float posX, float posY, float posZ,
-                                                    float rotX, float rotY, float rotZ)
+        public static string EncodeFaceTrackingData(FaceData data)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1} {2} {3} {4} {5} {6} {7} {8} {9} {10} {11} {12}",
-                                 FaceTrackingFrameType, au0, au1, au2, au3, au4, au5,
-                                 posX, posY, posZ, rotX, rotY, rotZ);
+                                 FaceTrackingFrameType, data.Au0, data.Au1, data.Au2, data.Au3, data.Au4, data.Au5,
+                                 data.PosX, data.PosY, data.PosZ, data.RotX, data.RotY, data.RotZ);
         }
 
         /// <summary>
         /// Encodes skeleton data to transmission.
         /// </summary>
-        public static string EncodeSkeletonData(JointData[] jointsData)
+        public static string EncodeSkeletonData(BodyData bodyData)
         {
-            if (jointsData == null)
+            if (bodyData.JointData == null)
             {
                 return EncodeError("EncodeSkeletonData: joint data is null.");
             }
 
             _stringBuilder.Remove(0, _stringBuilder.Length);
-            _stringBuilder.Append(SkeletonFrameType + "|");
-            foreach (var jointData in jointsData)
+            _stringBuilder.AppendFormat(CultureInfo.InvariantCulture,"{0}|{1} {2} ", SkeletonFrameType, bodyData.UserId, (int)bodyData.TrackingState);
+            foreach (var jointData in bodyData.JointData)
             {
-                if (jointData.State == TrackingState.NotTracked)
+                if (jointData.State == JointTrackingState.NotTracked)
                 {
                     continue;
                 }
 
-                // state x y z qx qy qz qw 
+                // joint_id state x y z qx qy qz qw 
                 _stringBuilder.AppendFormat(CultureInfo.InvariantCulture, "{0} {1} {2} {3} {4} {5} {6} {7} {8} ",
                                             (int)jointData.JointId, (int)jointData.State, jointData.PositionX, jointData.PositionY, jointData.PositionZ,
                                             jointData.QuaternionX, jointData.QuaternionY, jointData.QuaternionZ, jointData.QuaternionW);
@@ -249,9 +246,13 @@ namespace DataConverter
         /// <summary>
         /// Decodes the skeleton data received from the data stream into joint positions.
         /// </summary>
-        public static void DecodeSkeletonData(string data, JointData[] jointsData)
+        public static void DecodeSkeletonData(string data, out BodyData bodyData)
         {
             const int jointsNumber = (int)JointType.NumberOfJoints;
+            bodyData = new BodyData();
+            bodyData.JointData = new JointData[jointsNumber];
+            var jointsData = bodyData.JointData;
+
             if (jointsData == null || jointsData.Length != jointsNumber)
             {
                 throw new Exception("DecodeSkeletonData is expecting a JointData[] buffer big enough to hold the data.");
@@ -259,22 +260,26 @@ namespace DataConverter
 
             for (int i = 0; i < jointsData.Length; i++)
             {
-                jointsData[i].State = TrackingState.NotTracked;
+                jointsData[i].State = JointTrackingState.NotTracked;
             }
 
             string[] tokens = data.Split(' ');
+            bodyData.UserId = int.Parse(tokens[0], CultureInfo.InvariantCulture);
+            bodyData.TrackingState = (BodyTrackingState)int.Parse(tokens[1], CultureInfo.InvariantCulture);
+
+            const int jointDataOffset = 2;
             const int elementsNumber = 9;
-            for (int i = 0; i < tokens.Length / elementsNumber; i++)
+            for (int i = 0; i + jointDataOffset < (tokens.Length / elementsNumber) + jointDataOffset; i++)
             {
-                int jointId = int.Parse(tokens[i * elementsNumber], CultureInfo.InvariantCulture);
-                jointsData[jointId].State = (TrackingState)int.Parse(tokens[i * elementsNumber + 1], CultureInfo.InvariantCulture);
-                jointsData[jointId].PositionX = float.Parse(tokens[i * elementsNumber + 2], CultureInfo.InvariantCulture);
-                jointsData[jointId].PositionY = float.Parse(tokens[i * elementsNumber + 3], CultureInfo.InvariantCulture);
-                jointsData[jointId].PositionZ = float.Parse(tokens[i * elementsNumber + 4], CultureInfo.InvariantCulture);
-                jointsData[jointId].QuaternionX = float.Parse(tokens[i * elementsNumber + 5], CultureInfo.InvariantCulture);
-                jointsData[jointId].QuaternionY = float.Parse(tokens[i * elementsNumber + 6], CultureInfo.InvariantCulture);
-                jointsData[jointId].QuaternionZ = float.Parse(tokens[i * elementsNumber + 7], CultureInfo.InvariantCulture);
-                jointsData[jointId].QuaternionW = float.Parse(tokens[i * elementsNumber + 8], CultureInfo.InvariantCulture);
+                int jointId = int.Parse(tokens[(i * elementsNumber) + jointDataOffset], CultureInfo.InvariantCulture);
+                jointsData[jointId].State = (JointTrackingState)int.Parse(tokens[(i * elementsNumber + 1) + jointDataOffset], CultureInfo.InvariantCulture);
+                jointsData[jointId].PositionX = float.Parse(tokens[(i * elementsNumber + 2) + jointDataOffset], CultureInfo.InvariantCulture);
+                jointsData[jointId].PositionY = float.Parse(tokens[(i * elementsNumber + 3) + jointDataOffset], CultureInfo.InvariantCulture);
+                jointsData[jointId].PositionZ = float.Parse(tokens[(i * elementsNumber + 4) + jointDataOffset], CultureInfo.InvariantCulture);
+                jointsData[jointId].QuaternionX = float.Parse(tokens[(i * elementsNumber + 5) + jointDataOffset], CultureInfo.InvariantCulture);
+                jointsData[jointId].QuaternionY = float.Parse(tokens[(i * elementsNumber + 6) + jointDataOffset], CultureInfo.InvariantCulture);
+                jointsData[jointId].QuaternionZ = float.Parse(tokens[(i * elementsNumber + 7) + jointDataOffset], CultureInfo.InvariantCulture);
+                jointsData[jointId].QuaternionW = float.Parse(tokens[(i * elementsNumber + 8) + jointDataOffset], CultureInfo.InvariantCulture);
              }
         }
 
@@ -421,8 +426,15 @@ namespace DataConverter
 
         NumberOfJoints
     }
-    
-    public enum TrackingState
+
+    public enum BodyTrackingState
+    {
+        NotTracked = 0,
+        PositionOnly,
+        Tracked,
+    }
+
+    public enum JointTrackingState
     {
         NotTracked = 0,
         Inferred,
@@ -457,10 +469,17 @@ namespace DataConverter
         public bool IsTracked;
     }
 
+    public struct BodyData
+    {
+        public int UserId;
+        public BodyTrackingState TrackingState;
+        public JointData[] JointData;
+    }
+
     public struct JointData
     {
         public JointType JointId;
-        public TrackingState State;
+        public JointTrackingState State;
         public float PositionX;
         public float PositionY;
         public float PositionZ;
@@ -472,6 +491,7 @@ namespace DataConverter
 
     public struct FaceData
     {
+        public int UserId;
         public float Au0;
         public float Au1;
         public float Au2;

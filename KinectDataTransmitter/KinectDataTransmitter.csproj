@@ -85,9 +85,9 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(TargetDir)*.dll" "$(SolutionDir)..\sweden-house\Kinect\" /y
-xcopy "$(TargetDir)*.exe" "$(SolutionDir)..\sweden-house\Kinect\" /y
-xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\sweden-house\Assets\Scripts\Framework\Kinect" /y</PostBuildEvent>
+    <PostBuildEvent>xcopy "$(TargetDir)*.dll" "$(SolutionDir)..\quanteh\Kinect\" /y
+xcopy "$(TargetDir)*.exe" "$(SolutionDir)..\quanteh\Kinect\" /y
+xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh\Assets\Common\Scripts\Framework\Kinect" /y</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
