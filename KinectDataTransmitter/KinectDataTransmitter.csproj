@@ -85,9 +85,10 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(TargetDir)*.dll" "$(SolutionDir)..\quanteh\Kinect\" /y
-xcopy "$(TargetDir)*.exe" "$(SolutionDir)..\quanteh\Kinect\" /y
-xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh\Assets\Common\Scripts\Framework\Kinect" /y</PostBuildEvent>
+    <PostBuildEvent>xcopy "$(TargetDir)*.dll" "$(SolutionDir)..\quanteh-unity\Kinect\" /y
+xcopy "$(TargetDir)*.exe" "$(SolutionDir)..\quanteh-unity\Kinect\" /y
+xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh-unity\Assets\Common\Scripts\Framework\Kinect" /y
+xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\Quanteh\lib" /y</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
