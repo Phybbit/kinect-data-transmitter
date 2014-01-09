@@ -1,9 +1,11 @@
-﻿using DataConverter;
+﻿using System.Diagnostics.Eventing.Reader;
+using DataConverter;
 using Microsoft.Kinect;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using JointTrackingState = DataConverter.JointTrackingState;
 using JointType = Microsoft.Kinect.JointType;
 
 namespace KinectDataTransmitter
@@ -14,17 +16,10 @@ namespace KinectDataTransmitter
     public class SkeletonDataTracker : IDisposable
     {
         private bool _disposed;
-        private readonly JointData[] _jointData;
+        private Dictionary<int, BodyData> _bodyData = new Dictionary<int, BodyData>();
 
         public SkeletonDataTracker()
         {
-            const int jointsNumber = (int)DataConverter.JointType.NumberOfJoints;
-            _jointData = new JointData[jointsNumber];
-            for (int i = 0; i < jointsNumber; i++)
-            {
-                _jointData[i] = new JointData();
-                _jointData[i].JointId = (DataConverter.JointType)i;
-            }
         }
 
         ~SkeletonDataTracker()
@@ -60,33 +55,15 @@ namespace KinectDataTransmitter
                 return;
             }
 
-            // Assume no nearest skeleton and that the nearest skeleton is a long way away.
-            Skeleton nearestSkeleton = null;
-            var nearestSqrDistance = double.MaxValue;
-
             // Look through the skeletons.
             foreach (var skeleton in skeletons)
             {
-                // Only consider tracked skeletons.
-                if (skeleton.TrackingState == SkeletonTrackingState.Tracked)
+                if (skeleton.TrackingId == 0 && skeleton.TrackingState == SkeletonTrackingState.NotTracked)
                 {
-                    // Find the distance squared.
-                    var sqrDistance = (skeleton.Position.X*skeleton.Position.X) +
-                                      (skeleton.Position.Y*skeleton.Position.Y) +
-                                      (skeleton.Position.Z*skeleton.Position.Z);
-
-                    // Is the new distance squared closer than the nearest so far?
-                    if (sqrDistance < nearestSqrDistance)
-                    {
-                        // Use the new values.
-                        nearestSqrDistance = sqrDistance;
-                        nearestSkeleton = skeleton;
-                    }
+                    continue;
                 }
-               
+                SendSkeletonData(skeleton);
             }
-            
-            SendSkeletonData(nearestSkeleton);
         }
 
         private void SendSkeletonData(Skeleton skeleton)
@@ -96,29 +73,60 @@ namespace KinectDataTransmitter
                 return;
             }
 
-            for (int i = 0; i < _jointData.Length; i++ )
+            var bodyData = RetrieveOrCreateBodyDataFor(skeleton.TrackingId);
+            bodyData.TrackingState = (BodyTrackingState)skeleton.TrackingState;
+
+            var jointData = bodyData.JointData;
+            for (int i = 0; i < jointData.Length; i++ )
             {
-                _jointData[i].State = TrackingState.NotTracked;
+                jointData[i].State = JointTrackingState.NotTracked;
             }
 
             foreach (Joint joint in skeleton.Joints)
             {
                 int type = (int)joint.JointType;
-                _jointData[type].State = (TrackingState) joint.TrackingState;
-                _jointData[type].PositionX = joint.Position.X;
-                _jointData[type].PositionY = joint.Position.Y;
-                _jointData[type].PositionZ = joint.Position.Z;
+                jointData[type].State = (JointTrackingState) joint.TrackingState;
+                jointData[type].PositionX = joint.Position.X;
+                jointData[type].PositionY = joint.Position.Y;
+                jointData[type].PositionZ = joint.Position.Z;
             }
 
             foreach (BoneOrientation boneOrientations in skeleton.BoneOrientations)
             {
                 int type = (int)boneOrientations.EndJoint;
-                _jointData[type].QuaternionX = boneOrientations.HierarchicalRotation.Quaternion.X;
-                _jointData[type].QuaternionY = boneOrientations.HierarchicalRotation.Quaternion.Y;
-                _jointData[type].QuaternionZ = boneOrientations.HierarchicalRotation.Quaternion.Z;
-                _jointData[type].QuaternionW = boneOrientations.HierarchicalRotation.Quaternion.W;
+                jointData[type].QuaternionX = boneOrientations.HierarchicalRotation.Quaternion.X;
+                jointData[type].QuaternionY = boneOrientations.HierarchicalRotation.Quaternion.Y;
+                jointData[type].QuaternionZ = boneOrientations.HierarchicalRotation.Quaternion.Z;
+                jointData[type].QuaternionW = boneOrientations.HierarchicalRotation.Quaternion.W;
             }
-            Console.WriteLine(Converter.EncodeSkeletonData(_jointData));
+            Console.WriteLine(Converter.EncodeSkeletonData(bodyData));
+        }
+
+        private BodyData RetrieveOrCreateBodyDataFor(int skeletonId)
+        {
+            if (_bodyData.ContainsKey(skeletonId))
+            {
+                return _bodyData[skeletonId];
+            }
+            var bodyData = SetupBodyData(skeletonId);
+            _bodyData[skeletonId] = bodyData;
+            return bodyData;
+        }
+
+
+        private BodyData SetupBodyData(int userId)
+        {
+            var bodyData = new BodyData();
+            bodyData.UserId = userId;
+            const int jointsNumber = (int)DataConverter.JointType.NumberOfJoints;
+            var jointData = new JointData[jointsNumber];
+            for (int i = 0; i < jointsNumber; i++)
+            {
+                jointData[i] = new JointData();
+                jointData[i].JointId = (DataConverter.JointType)i;
+            }
+            bodyData.JointData = jointData;
+            return bodyData;
         }
     }
 }

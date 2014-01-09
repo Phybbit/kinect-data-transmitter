@@ -38,8 +38,9 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\..\Program Files\Microsoft SDKs\Kinect\v1.7\Assemblies\Microsoft.Kinect.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.Kinect.Toolkit.Interaction">
-      <HintPath>..\..\..\..\..\..\Program Files\Microsoft SDKs\Kinect\Developer Toolkit v1.7.0\Assemblies\Microsoft.Kinect.Toolkit.Interaction.dll</HintPath>
+    <Reference Include="Microsoft.Kinect.Toolkit.Interaction, Version=1.8.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files\Microsoft SDKs\Kinect\Developer Toolkit v1.8.0\Assemblies\Microsoft.Kinect.Toolkit.Interaction.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -72,21 +73,22 @@
       <Name>Microsoft.Kinect.Toolkit</Name>
     </ProjectReference>
   </ItemGroup>
-    <ItemGroup>
-    <Content Include="$(KINECT_TOOLKIT_DIR)Redist\x86\KinectInteraction170_32.dll">
-      <Link>KinectInteraction170_32.dll</Link>
+  <ItemGroup>
+    <Content Include="$(KINECT_TOOLKIT_DIR)Redist\x86\KinectInteraction180_32.dll">
+      <Link>KinectInteraction180_32.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="$(KINECT_TOOLKIT_DIR)Redist\amd64\KinectInteraction170_64.dll">
-      <Link>KinectInteraction170_64.dll</Link>
+    <Content Include="$(KINECT_TOOLKIT_DIR)Redist\amd64\KinectInteraction180_64.dll">
+      <Link>KinectInteraction180_64.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>xcopy "$(TargetDir)*.dll" "$(SolutionDir)..\KinectController\Kinect\" /y
-xcopy "$(TargetDir)*.exe" "$(SolutionDir)..\KinectController\Kinect\" /y
-xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\KinectController\Assets\Scripts\Kinect" /y</PostBuildEvent>
+    <PostBuildEvent>xcopy "$(TargetDir)*.dll" "$(SolutionDir)..\quanteh-unity\Kinect\" /y
+xcopy "$(TargetDir)*.exe" "$(SolutionDir)..\quanteh-unity\Kinect\" /y
+xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh-unity\Assets\Common\Scripts\Framework\Kinect" /y
+xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\Quanteh\lib" /y</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

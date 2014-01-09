@@ -36,6 +36,6 @@ using System.Windows.Markup;
 
 [assembly: NeutralResourcesLanguageAttribute("en-US")]
 [assembly: CLSCompliant(true)]
-[assembly: AssemblyVersion("1.7.0.0")]
+[assembly: AssemblyVersion("1.8.0.0")]
 [assembly: XmlnsDefinition("http://schemas.microsoft.com/kinect/2013", "Microsoft.Kinect.Toolkit")]
 [assembly: XmlnsPrefix("http://schemas.microsoft.com/kinect/2013", "k")]

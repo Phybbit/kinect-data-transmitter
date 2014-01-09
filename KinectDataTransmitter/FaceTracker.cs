@@ -172,9 +172,20 @@ namespace KinectDataTransmitter
                         var animUnits = frame.GetAnimationUnitCoefficients();
                         var pos = frame.Translation;
                         var rot = frame.Rotation;
-                        var data = Converter.EncodeFaceTrackingData(animUnits[0], animUnits[1], animUnits[2],
-                                                                    animUnits[3], animUnits[4], animUnits[5],
-                                                                    pos.X, pos.Y, pos.Z, rot.X, rot.Y, rot.Z);
+                        var faceData = new FaceData();
+                        faceData.Au0 = animUnits[0];
+                        faceData.Au1 = animUnits[1];
+                        faceData.Au2 = animUnits[2];
+                        faceData.Au3 = animUnits[3];
+                        faceData.Au4 = animUnits[4];
+                        faceData.Au5 = animUnits[5];
+                        faceData.PosX = pos.X;
+                        faceData.PosY = pos.Y;
+                        faceData.PosZ = pos.Z;
+                        faceData.RotX = rot.X;
+                        faceData.RotY = rot.Y;
+                        faceData.RotZ = rot.Z;
+                        var data = Converter.EncodeFaceTrackingData(faceData);
                         Console.WriteLine(data);
                     }
                 }
