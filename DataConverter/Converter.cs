@@ -176,7 +176,8 @@ namespace DataConverter
             }
 
             _stringBuilder.Remove(0, _stringBuilder.Length);
-            _stringBuilder.AppendFormat(CultureInfo.InvariantCulture,"{0}|{1} {2} ", SkeletonFrameType, bodyData.UserId, (int)bodyData.TrackingState);
+            _stringBuilder.AppendFormat(CultureInfo.InvariantCulture,"{0}|{1} {2} {3} ",
+                SkeletonFrameType, bodyData.UserId, (int)bodyData.TrackingState, bodyData.PlayerIndex);
             foreach (var jointData in bodyData.JointData)
             {
                 if (jointData.State == JointTrackingState.NotTracked)
@@ -266,8 +267,9 @@ namespace DataConverter
             string[] tokens = data.Split(' ');
             bodyData.UserId = int.Parse(tokens[0], CultureInfo.InvariantCulture);
             bodyData.TrackingState = (BodyTrackingState)int.Parse(tokens[1], CultureInfo.InvariantCulture);
+            bodyData.PlayerIndex = int.Parse(tokens[2], CultureInfo.InvariantCulture);
 
-            const int jointDataOffset = 2;
+            const int jointDataOffset = 3;
             const int elementsNumber = 9;
             for (int i = 0; i + jointDataOffset < (tokens.Length / elementsNumber) + jointDataOffset; i++)
             {
@@ -472,6 +474,7 @@ namespace DataConverter
     public struct BodyData
     {
         public int UserId;
+        public int PlayerIndex;
         public BodyTrackingState TrackingState;
         public JointData[] JointData;
     }

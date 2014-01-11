@@ -56,25 +56,32 @@ namespace KinectDataTransmitter
             }
 
             // Look through the skeletons.
+            int playerIndex = -1;
             foreach (var skeleton in skeletons)
             {
+                playerIndex++;
                 if (skeleton.TrackingId == 0 && skeleton.TrackingState == SkeletonTrackingState.NotTracked)
                 {
                     continue;
                 }
-                SendSkeletonData(skeleton);
+                SendSkeletonData(skeleton, playerIndex);
             }
         }
 
-        private void SendSkeletonData(Skeleton skeleton)
+        private void SendSkeletonData(Skeleton skeleton, int playerIndex)
         {
             if (skeleton == null)
             {
                 return;
             }
 
+            if (skeleton.TrackingId > 5)
+            {
+            }
+
             var bodyData = RetrieveOrCreateBodyDataFor(skeleton.TrackingId);
             bodyData.TrackingState = (BodyTrackingState)skeleton.TrackingState;
+            bodyData.PlayerIndex = playerIndex;
 
             var jointData = bodyData.JointData;
             for (int i = 0; i < jointData.Length; i++ )

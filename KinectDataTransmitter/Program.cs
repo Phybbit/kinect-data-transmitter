@@ -23,6 +23,7 @@ namespace KinectDataTransmitter
                 var kinect = new KinectDevice();
                 kinect.IsTrackingSkeletons = true;
                 kinect.IsTrackingFace = true;
+                kinect.IsWritingDepthStream = true;
 
                 Thread pingThread = new Thread(SendPings);
                 pingThread.Start();

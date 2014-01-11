@@ -87,7 +87,7 @@
   <PropertyGroup>
     <PostBuildEvent>xcopy "$(TargetDir)*.dll" "$(SolutionDir)..\quanteh-unity\Kinect\" /y
 xcopy "$(TargetDir)*.exe" "$(SolutionDir)..\quanteh-unity\Kinect\" /y
-xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh-unity\Assets\Common\Scripts\Framework\Kinect" /y
+xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh-unity\Assets\Quanteh\Runtime" /y
 xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh-framework\lib" /y</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
