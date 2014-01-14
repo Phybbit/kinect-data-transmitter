@@ -1,7 +1,6 @@
 ﻿using System;
 using DataConverter;
 using Microsoft.Kinect;
-using Microsoft.Kinect.Toolkit;
 using System.IO.MemoryMappedFiles;
 
 namespace KinectDataTransmitter

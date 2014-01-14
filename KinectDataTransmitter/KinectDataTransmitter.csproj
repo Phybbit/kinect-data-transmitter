@@ -53,10 +53,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Kinect, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=AMD64" />
-    <Reference Include="Microsoft.Kinect.Toolkit.Interaction, Version=1.8.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Program Files\Microsoft SDKs\Kinect\Developer Toolkit v1.8.0\Assemblies\Microsoft.Kinect.Toolkit.Interaction.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -112,7 +108,8 @@
   <PropertyGroup>
     <PostBuildEvent>xcopy "$(TargetDir)*.dll" "$(SolutionDir)..\quanteh-unity\Kinect\" /y
 xcopy "$(TargetDir)*.exe" "$(SolutionDir)..\quanteh-unity\Kinect\" /y
-xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh-unity\Assets\Common\Scripts\Framework\Kinect" /y</PostBuildEvent>
+xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh-unity\Assets\Quanteh\Runtime" /y
+xcopy "$(TargetDir)DataConverter.dll" "$(SolutionDir)..\quanteh-framework\lib" /y</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

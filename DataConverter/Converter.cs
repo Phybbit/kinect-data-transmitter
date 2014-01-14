@@ -176,7 +176,8 @@ namespace DataConverter
             }
 
             _stringBuilder.Remove(0, _stringBuilder.Length);
-            _stringBuilder.AppendFormat(CultureInfo.InvariantCulture,"{0}|{1} {2} ", SkeletonFrameType, bodyData.UserId, (int)bodyData.TrackingState);
+            _stringBuilder.AppendFormat(CultureInfo.InvariantCulture,"{0}|{1} {2} {3} ",
+                SkeletonFrameType, bodyData.UserId, bodyData.IsTracked, bodyData.PlayerIndex);
             foreach (var jointData in bodyData.JointData)
             {
                 if (jointData.State == JointTrackingState.NotTracked)
@@ -264,10 +265,11 @@ namespace DataConverter
             }
 
             string[] tokens = data.Split(' ');
-            bodyData.UserId = int.Parse(tokens[0], CultureInfo.InvariantCulture);
-            bodyData.TrackingState = (BodyTrackingState)int.Parse(tokens[1], CultureInfo.InvariantCulture);
+            bodyData.UserId = ulong.Parse(tokens[0], CultureInfo.InvariantCulture);
+            bodyData.IsTracked = bool.Parse(tokens[1]);
+            bodyData.PlayerIndex = int.Parse(tokens[2], CultureInfo.InvariantCulture);
 
-            const int jointDataOffset = 2;
+            const int jointDataOffset = 3;
             const int elementsNumber = 9;
             for (int i = 0; i + jointDataOffset < (tokens.Length / elementsNumber) + jointDataOffset; i++)
             {
@@ -293,7 +295,7 @@ namespace DataConverter
             var tokens = data.Split(' ');
 
             handPointer = new HandPointer();
-            handPointer.UserId = int.Parse(tokens[0], CultureInfo.InvariantCulture);
+            handPointer.UserId = ulong.Parse(tokens[0], CultureInfo.InvariantCulture);
             handPointer.HandEventType = (HandEventType)Enum.Parse(typeof(HandEventType), tokens[1]);
             handPointer.HandType = (HandType)Enum.Parse(typeof(HandType), tokens[2]);
             handPointer.X = float.Parse(tokens[3], CultureInfo.InvariantCulture);
@@ -461,7 +463,7 @@ namespace DataConverter
 
     public struct HandPointer
     {
-        public int UserId;
+        public ulong UserId;
         public HandEventType HandEventType;
         public HandType HandType;
         public float X;
@@ -475,8 +477,9 @@ namespace DataConverter
 
     public struct BodyData
     {
-        public int UserId;
-        public BodyTrackingState TrackingState;
+        public ulong UserId;
+        public int PlayerIndex;
+        public bool IsTracked;
         public JointData[] JointData;
     }
 

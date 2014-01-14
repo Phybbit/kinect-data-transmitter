@@ -56,25 +56,28 @@ namespace KinectDataTransmitter
             }
 
             // Look through the skeletons.
+            int playerIndex = -1;
             foreach (Body body in bodies)
             {
+                playerIndex++;
                 if (body.TrackingId == 0 && body.LeanTrackingState == TrackingState.NotTracked)
                 {
                     continue;
                 }
-                SendSkeletonData(body);
+                SendSkeletonData(body, playerIndex);
             }
         }
 
-        private void SendSkeletonData(Body body)
+        private void SendSkeletonData(Body body, int playerIndex)
         {
             if (body == null)
             {
                 return;
             }
 
-            var bodyData = RetrieveOrCreateBodyDataFor((int)body.TrackingId);
-            bodyData.TrackingState = (BodyTrackingState)body.LeanTrackingState;
+            var bodyData = RetrieveOrCreateBodyDataFor(playerIndex, body.TrackingId);
+            bodyData.IsTracked = body.IsTracked;
+            bodyData.PlayerIndex = playerIndex;
 
             var jointData = bodyData.JointData;
             for (int i = 0; i < jointData.Length; i++ )
@@ -101,19 +104,19 @@ namespace KinectDataTransmitter
             Console.WriteLine(Converter.EncodeSkeletonData(bodyData));
         }
 
-        private BodyData RetrieveOrCreateBodyDataFor(int skeletonId)
+        private BodyData RetrieveOrCreateBodyDataFor(int playerIndex, ulong userId)
         {
-            if (_bodyData.ContainsKey(skeletonId))
+            if (_bodyData.ContainsKey(playerIndex))
             {
-                return _bodyData[skeletonId];
+                return _bodyData[playerIndex];
             }
-            var bodyData = SetupBodyData(skeletonId);
-            _bodyData[skeletonId] = bodyData;
+            var bodyData = SetupBodyData(userId);
+            _bodyData[playerIndex] = bodyData;
             return bodyData;
         }
 
 
-        private BodyData SetupBodyData(int userId)
+        private BodyData SetupBodyData(ulong userId)
         {
             var bodyData = new BodyData();
             bodyData.UserId = userId;
