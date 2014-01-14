@@ -194,17 +194,17 @@ namespace DataConverter
 
 
 
-        public static string EncodeNewInteractionUser(int skeletonTrackingId)
+        public static string EncodeNewInteractionUser(ulong skeletonTrackingId)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", InteractionNewUserFrameType, skeletonTrackingId);
         }
 
-        public static string EncodeInteraction(int skeletonTrackingId, HandEventType handEventType, HandType handType, float x, float y, float pressExtent, bool isActive, bool isInteractive, bool isPressed, bool isTracked)
+        public static string EncodeInteraction(ulong skeletonTrackingId, HandEventType handEventType, HandType handType, float x, float y, float pressExtent, bool isActive, bool isInteractive, bool isPressed, bool isTracked)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1} {2} {3} {4} {5} {6} {7} {8} {9} {10}", InteractionFrameType, skeletonTrackingId, handEventType, handType, x, y, pressExtent, isActive, isInteractive, isPressed, isTracked);
         }
 
-        public static string EncodeInteractionUserLeft(int id)
+        public static string EncodeInteractionUserLeft(ulong id)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", InteractionUserLeftFrameType, id);
         }
@@ -248,7 +248,7 @@ namespace DataConverter
         /// </summary>
         public static void DecodeSkeletonData(string data, out BodyData bodyData)
         {
-            const int jointsNumber = (int)JointType.NumberOfJoints;
+            const int jointsNumber = (int)JointType.Count;
             bodyData = new BodyData();
             bodyData.JointData = new JointData[jointsNumber];
             var jointsData = bodyData.JointData;
@@ -403,28 +403,32 @@ namespace DataConverter
     /// </summary>
     public enum JointType
     {
-        HipCenter = 0,
-        Spine,
-        ShoulderCenter,
-        Head,
-        ShoulderLeft,
-        ElbowLeft,
-        WristLeft,
-        HandLeft,
-        ShoulderRight,
-        ElbowRight,
-        WristRight,
-        HandRight,
-        HipLeft,
-        KneeLeft,
-        AnkleLeft,
-        FootLeft,
-        HipRight,
-        KneeRight,
-        AnkleRight,
-        FootRight,
-
-        NumberOfJoints
+        SpineBase = 0,
+        SpineMid = 1,
+        Neck = 2,
+        Head = 3,
+        ShoulderLeft = 4,
+        ElbowLeft = 5,
+        WristLeft = 6,
+        HandLeft = 7,
+        ShoulderRight = 8,
+        ElbowRight = 9,
+        WristRight = 10,
+        HandRight = 11,
+        HipLeft = 12,
+        KneeLeft = 13,
+        AnkleLeft = 14,
+        FootLeft = 15,
+        HipRight = 16,
+        KneeRight = 17,
+        AnkleRight = 18,
+        FootRight = 19,
+        SpineShoulder = 20,
+        HandTipLeft = 21,
+        ThumbLeft = 22,
+        HandTipRight = 23,
+        ThumbRight = 24,
+        Count = 25,
     }
 
     public enum BodyTrackingState

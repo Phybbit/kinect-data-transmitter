@@ -66,7 +66,7 @@ namespace KinectDataTransmitter
             Console.WriteLine(Converter.VideoFrameType);
         }
 
-        public void ProcessDepthData(short[] depthImageData)
+        public void ProcessDepthData(ushort[] depthImageData)
         {
             const int bytesPerShort = 2;
             using (var accessor = _depthMemoryMappedFile.CreateViewAccessor(0, depthImageData.Length * bytesPerShort, MemoryMappedFileAccess.Write))

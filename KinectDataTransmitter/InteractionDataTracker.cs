@@ -32,7 +32,7 @@ namespace KinectDataTransmitter
         /// <summary>
         /// Keeps track of set of interacting users.
         /// </summary>
-        private readonly HashSet<int> trackedUsers = new HashSet<int>();
+        private readonly HashSet<ulong> trackedUsers = new HashSet<ulong>();
 
         //// TODO: Rather than hardcoding UI element information, use the facilities
         //// TODO: provided by your UI framework of choice.
@@ -191,46 +191,123 @@ namespace KinectDataTransmitter
         #region Processing
 
         /// <summary>
-        /// Handler for the Kinect sensor's DepthFrameReady event
-        /// </summary>
-        /// <param name="sender">object sending the event</param>
-        /// <param name="depthImageFrameReadyEventArgs">event arguments</param>
-        public void SensorDepthFrameReady(DepthImageFrame depthFrame)
-        {
-            if (null != depthFrame)
-            {
-                try
-                {
-                    // Hand data to Interaction framework to be processed
-                    this.interactionStream.ProcessDepth(depthFrame.GetRawPixelData(), depthFrame.Timestamp);
-                }
-                catch (InvalidOperationException)
-                {
-                    // DepthFrame functions may throw when the sensor gets
-                    // into a bad state.  Ignore the frame in that case.
-                }
-            }
-        }
-
-        /// <summary>
         /// Handler for the Kinect sensor's SkeletonFrameReady event
         /// </summary>
         /// <param name="sender">object sending the event</param>
         /// <param name="skeletonFrameReadyEventArgs">event arguments</param>
-        public void ProcessData(Skeleton[] skeletons, long timestamp)
+        public void ProcessData(Body[] bodies)
         {
-            try
+            if (bodies == null)
             {
-                var accelerometerReading = this.kinectSensor.AccelerometerGetCurrentReading();
+                return;
+            }
 
-                // Hand data to Interaction framework to be processed
-                this.interactionStream.ProcessSkeleton(skeletons, accelerometerReading, timestamp);
-            }
-            catch (InvalidOperationException)
+            // Look through the skeletons.
+            foreach (Body body in bodies)
             {
-                // SkeletonFrame functions may throw when the sensor gets
-                // into a bad state.  Ignore the frame in that case.
+                if (body.TrackingId == 0 && body.LeanTrackingState == TrackingState.NotTracked)
+                {
+                    continue;
+                }
+                SendInteractionData(body);
             }
+        }
+
+        private void SendInteractionData(Body body, HandType handType)
+        {
+            HandPointer handPointer = convertHandPointerFromBodyAndHandType(body, handType);
+
+            Console.WriteLine(Converter.EncodeInteraction(body.TrackingId,
+                                                        (HandEventType)handPointer.HandEventType,
+                                                        (HandType)handPointer.HandType, (float)handPointer.X, (float)handPointer.Y, (float)handPointer.PressExtent,
+                                                        handPointer.IsActive, handPointer.IsInteractive, handPointer.IsPressed, handPointer.IsTracked));
+
+        }
+
+        private void SendInteractionData(Body body)
+        {
+            if (body == null)
+            {
+                return;
+            }
+            
+            var currentUserSet = new HashSet<ulong>();
+            var usersToRemove = new HashSet<ulong>();
+
+            if (!this.trackedUsers.Contains(body.TrackingId))
+            {
+                Console.WriteLine(Converter.EncodeNewInteractionUser(body.TrackingId));
+            }
+            currentUserSet.Add(body.TrackingId);
+            this.trackedUsers.Add(body.TrackingId);
+            SendInteractionData(body, HandType.Right);
+            SendInteractionData(body, HandType.Left);
+
+            foreach (var id in this.trackedUsers)
+            {
+                if (!currentUserSet.Contains(id))
+                {
+                    usersToRemove.Add(id);
+                }
+            }
+
+            foreach (var id in usersToRemove)
+            {
+                this.trackedUsers.Remove(id);
+                Console.WriteLine(Converter.EncodeInteractionUserLeft(id));
+            }
+        }
+
+        private HandPointer convertHandPointerFromBodyAndHandType(Body body, HandType handType){
+                HandState handState = HandState.NotTracked;
+                TrackingConfidence trackingConfidence = TrackingConfidence.Low;
+                Vector4 spineToHand = new Vector4();
+                if (handType == HandType.Left){
+                    handState = body.HandLeftState;
+                    trackingConfidence = body.HandLeftConfidence;
+                    spineToHand = VectorBetweenJoints(body, Microsoft.Kinect.JointType.SpineMid, Microsoft.Kinect.JointType.HandLeft);
+                } else if (handType == HandType.Right){
+                    handState = body.HandRightState;
+                    trackingConfidence = body.HandRightConfidence;
+                    spineToHand = VectorBetweenJoints(body, Microsoft.Kinect.JointType.SpineMid, Microsoft.Kinect.JointType.HandRight);
+                }
+                HandEventType handEventType = HandEventType.None;
+                if (handState == HandState.Closed)
+                {
+                    handEventType = HandEventType.Grip;
+                }
+                else if (handState == HandState.Open)
+                {
+                    handEventType = HandEventType.GripRelease;
+                }
+
+
+            HandPointer handPointer = new HandPointer{
+                UserId = (int)body.TrackingId,
+                HandEventType = handEventType,
+                HandType = handType,
+                X = spineToHand.X,
+                Y = spineToHand.Y,
+                PressExtent = spineToHand.Z,
+                 IsActive = handState != HandState.NotTracked && trackingConfidence == TrackingConfidence.High,
+                 IsInteractive = false,
+                 IsPressed = false,
+                 IsTracked = handState != HandState.NotTracked
+            };
+
+            return handPointer;
+        }
+
+        static Vector4 VectorBetweenJoints(Body body, Microsoft.Kinect.JointType start, Microsoft.Kinect.JointType end)
+        {
+            CameraSpacePoint pointStart = body.Joints[start].Position;
+            CameraSpacePoint pointEnd = body.Joints[end].Position;
+            return new Vector4
+            {
+                X = pointEnd.X - pointStart.X,
+                Y = pointEnd.Y - pointStart.Y,
+                Z = pointEnd.Z - pointStart.Z
+            };
         }
 
         /// <summary>
@@ -269,49 +346,49 @@ namespace KinectDataTransmitter
                 //// TODO: See KinectRegion and KinectAdapter in Microsoft.Kinect.Toolkit.Controls assembly
                 //// TODO: For a more comprehensive example on how to do this.
 
-                var currentUserSet = new HashSet<int>();
-                var usersToRemove = new HashSet<int>();
+                //var currentUserSet = new HashSet<int>();
+                //var usersToRemove = new HashSet<int>();
 
-                // Keep track of current users in scene
-                foreach (var info in localUserInfos)
-                {
-                    if (info.SkeletonTrackingId == InvalidTrackingId)
-                    {
-                        // Only look at user information corresponding to valid users
-                        continue;
-                    }
+                //// Keep track of current users in scene
+                //foreach (var info in localUserInfos)
+                //{
+                //    if (info.SkeletonTrackingId == InvalidTrackingId)
+                //    {
+                //        // Only look at user information corresponding to valid users
+                //        continue;
+                //    }
 
-                    if (!this.trackedUsers.Contains(info.SkeletonTrackingId))
-                    {
-                        Console.WriteLine(Converter.EncodeNewInteractionUser(info.SkeletonTrackingId));
-                    }
+                //    if (!this.trackedUsers.Contains(info.SkeletonTrackingId))
+                //    {
+                //        Console.WriteLine(Converter.EncodeNewInteractionUser(info.SkeletonTrackingId));
+                //    }
 
-                    currentUserSet.Add(info.SkeletonTrackingId);
-                    this.trackedUsers.Add(info.SkeletonTrackingId);
+                //    currentUserSet.Add(info.SkeletonTrackingId);
+                //    this.trackedUsers.Add(info.SkeletonTrackingId);
 
                     // Perform hit testing and look for Grip and GripRelease events
-                    foreach (var handPointer in info.HandPointers)
-                    {
-                        Console.WriteLine(Converter.EncodeInteraction(info.SkeletonTrackingId,
-                                                                    (HandEventType)handPointer.HandEventType,
-                                                                    (HandType)handPointer.HandType, (float)handPointer.X, (float)handPointer.Y, (float)handPointer.PressExtent,
-                                                                    handPointer.IsActive, handPointer.IsInteractive, handPointer.IsPressed, handPointer.IsTracked));                            
-                    }
-                }
+                //    foreach (var handPointer in info.HandPointers)
+                //    {
+                //        Console.WriteLine(Converter.EncodeInteraction(info.SkeletonTrackingId,
+                //                                                    (HandEventType)handPointer.HandEventType,
+                //                                                    (HandType)handPointer.HandType, (float)handPointer.X, (float)handPointer.Y, (float)handPointer.PressExtent,
+                //                                                    handPointer.IsActive, handPointer.IsInteractive, handPointer.IsPressed, handPointer.IsTracked));                            
+                //    }
+                //}
 
-                foreach (var id in this.trackedUsers)
-                {
-                    if (!currentUserSet.Contains(id))
-                    {
-                        usersToRemove.Add(id);
-                    }
-                }
+                //foreach (var id in this.trackedUsers)
+                //{
+                //    if (!currentUserSet.Contains(id))
+                //    {
+                //        usersToRemove.Add(id);
+                //    }
+                //}
 
-                foreach (var id in usersToRemove)
-                {
-                    this.trackedUsers.Remove(id);
-                    Console.WriteLine(Converter.EncodeInteractionUserLeft(id));
-                }
+                //foreach (var id in usersToRemove)
+                //{
+                //    this.trackedUsers.Remove(id);
+                //    Console.WriteLine(Converter.EncodeInteractionUserLeft(id));
+                //}
             }
         }
 
