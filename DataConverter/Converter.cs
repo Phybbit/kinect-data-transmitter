@@ -23,6 +23,7 @@ namespace DataConverter
         public const char InteractionNewUserFrameType = 'U';
         public const char InteractionUserLeftFrameType = 'u';
         public const char InteractionFrameType = 'I';
+        public const char PoseActionType = 'O';
 
         /// <summary>
         /// Maximum number of joints in a skeleton.
@@ -210,6 +211,11 @@ namespace DataConverter
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", InteractionUserLeftFrameType, id);
         }
 
+        public static string EncodePoseAction(ulong skeletonTrackingId, PoseType poseType)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0}|{1} {2}", PoseActionType, skeletonTrackingId, poseType);
+        }
+
         /// <summary>
         /// Retrieves the part of the data that contains content.
         /// </summary>
@@ -312,7 +318,15 @@ namespace DataConverter
         {
             skeletonTrackingId = int.Parse(data, CultureInfo.InvariantCulture);
         }
-        
+
+        public static void DecodePoseActionData(string data, out ulong skeletonTrackingId, out PoseType poseType)
+        {
+            var tokens = data.Split(' ');
+            skeletonTrackingId = ulong.Parse(tokens[0], CultureInfo.InvariantCulture);
+            poseType = (PoseType)Enum.Parse(typeof(PoseType), tokens[1]);
+
+        }
+
         /// <summary>
         /// Encodes an error message to be sent through the data stream.
         /// </summary>
@@ -395,6 +409,10 @@ namespace DataConverter
         public static bool IsInteractionData(string data)
         {
             return data[0] == InteractionFrameType;
+        }
+        public static bool IsPoseActionData(string data)
+        {
+            return data[0] == PoseActionType;
         }
     }
 
@@ -511,5 +529,11 @@ namespace DataConverter
         public float RotX;
         public float RotY;
         public float RotZ;
+    }
+    
+    public enum PoseType
+    {
+        None,
+        Swith
     }
 }

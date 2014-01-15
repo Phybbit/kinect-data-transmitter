@@ -118,6 +118,7 @@ namespace KinectDataTransmitter
                     continue;
                 }
                 SendInteractionData(body);
+                SendPoseActionData(body);
             }
         }
 
@@ -130,6 +131,23 @@ namespace KinectDataTransmitter
                                                         (HandType)handPointer.HandType, (float)handPointer.X, (float)handPointer.Y, (float)handPointer.PressExtent,
                                                         handPointer.IsActive, handPointer.IsInteractive, handPointer.IsPressed, handPointer.IsTracked));
 
+        }
+
+        private void SendPoseActionData(Body body)
+        {
+            if (body == null)
+            {
+                return;
+            }
+
+            PoseType poseType = PoseType.None;
+
+            if (body.HandLeftState == HandState.Closed && body.HandRightState == HandState.Closed)
+            {
+                poseType = PoseType.Swith;
+            }
+
+            Console.WriteLine(Converter.EncodePoseAction(body.TrackingId, poseType));
         }
 
         private void SendInteractionData(Body body)
