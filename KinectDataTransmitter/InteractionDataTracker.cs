@@ -123,7 +123,7 @@ namespace KinectDataTransmitter
 
         private void SendInteractionData(Body body, HandType handType)
         {
-            HandPointer handPointer = convertHandPointerFromBodyAndHandType(body, handType);
+            HandPointer handPointer = ConvertHandPointerFromBodyAndHandType(body, handType);
 
             Console.WriteLine(Converter.EncodeInteraction(body.TrackingId,
                                                         (HandEventType)handPointer.HandEventType,
@@ -166,7 +166,7 @@ namespace KinectDataTransmitter
             }
         }
 
-        private HandPointer convertHandPointerFromBodyAndHandType(Body body, HandType handType){
+        private HandPointer ConvertHandPointerFromBodyAndHandType(Body body, HandType handType){
             HandState handState = HandState.NotTracked;
             TrackingConfidence trackingConfidence = TrackingConfidence.Low;
             Vector4 spineToHand = new Vector4();
