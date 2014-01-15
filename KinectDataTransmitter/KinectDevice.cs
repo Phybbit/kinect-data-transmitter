@@ -78,11 +78,11 @@ namespace KinectDataTransmitter
 
                     this._colorImageData = new byte[colorFrameDescription.Width * colorFrameDescription.Height * this.bytesPerPixel];
                     this._depthImageData = new ushort[depthFrameDescription.Width * depthFrameDescription.Height];
-                    Console.WriteLine("exist sensor");
+                    //Console.WriteLine("exist sensor");
                 }
                 else
                 {
-                    Console.WriteLine("no sensor");
+                    //Console.WriteLine("no sensor");
                 }
 
                 this.setReaders();
@@ -126,11 +126,11 @@ namespace KinectDataTransmitter
                     {
                         DepthFrameReference depthFrameReference = multiSourceFrame.DepthFrameReference;
                         ColorFrameReference colorFrameReference = multiSourceFrame.ColorFrameReference;
-                        BodyFrameReference bodyFrameReference = multiSourceFrame.BodyFrameReference;
+                        BodyFrameReference  bodyFrameReference = multiSourceFrame.BodyFrameReference;
 
                         depthFrame = depthFrameReference.AcquireFrame();
                         colorFrame = colorFrameReference.AcquireFrame();
-                        bodyFrame = bodyFrameReference.AcquireFrame();
+                        bodyFrame  = bodyFrameReference.AcquireFrame();
 
                         long frameNumber = -1;
                         if ((depthFrame != null))

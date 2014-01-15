@@ -167,40 +167,48 @@ namespace KinectDataTransmitter
         }
 
         private HandPointer convertHandPointerFromBodyAndHandType(Body body, HandType handType){
-                HandState handState = HandState.NotTracked;
-                TrackingConfidence trackingConfidence = TrackingConfidence.Low;
-                Vector4 spineToHand = new Vector4();
-                if (handType == HandType.Left){
-                    handState = body.HandLeftState;
-                    trackingConfidence = body.HandLeftConfidence;
-                    spineToHand = VectorBetweenJoints(body, Microsoft.Kinect.JointType.SpineMid, Microsoft.Kinect.JointType.HandLeft);
-                } else if (handType == HandType.Right){
-                    handState = body.HandRightState;
-                    trackingConfidence = body.HandRightConfidence;
-                    spineToHand = VectorBetweenJoints(body, Microsoft.Kinect.JointType.SpineMid, Microsoft.Kinect.JointType.HandRight);
-                }
-                HandEventType handEventType = HandEventType.None;
-                if (handState == HandState.Closed)
-                {
-                    handEventType = HandEventType.Grip;
-                }
-                else if (handState == HandState.Open)
-                {
-                    handEventType = HandEventType.GripRelease;
-                }
+            HandState handState = HandState.NotTracked;
+            TrackingConfidence trackingConfidence = TrackingConfidence.Low;
+            Vector4 spineToHand = new Vector4();
+            if (handType == HandType.Left)
+            {
+                handState = body.HandLeftState;
+                trackingConfidence = body.HandLeftConfidence;
+                spineToHand = VectorBetweenJoints(body, Microsoft.Kinect.JointType.SpineMid, Microsoft.Kinect.JointType.HandLeft);
+            }
+            else if (handType == HandType.Right)
+            {
+                handState = body.HandRightState;
+                trackingConfidence = body.HandRightConfidence;
+                spineToHand = VectorBetweenJoints(body, Microsoft.Kinect.JointType.SpineMid, Microsoft.Kinect.JointType.HandRight);
+            }
+            HandEventType handEventType = HandEventType.None;
+            if (handState == HandState.Closed)
+            {
+                handEventType = HandEventType.Grip;
+            }
+            else if (handState == HandState.Open)
+            {
+                handEventType = HandEventType.GripRelease;
+            }
+            Vector4 shoulderLength = VectorBetweenJoints(body, Microsoft.Kinect.JointType.ShoulderLeft, Microsoft.Kinect.JointType.ShoulderRight);
 
+            float pressExtent = Math.Abs(spineToHand.Z) - VectorLength(shoulderLength);
 
-            HandPointer handPointer = new HandPointer{
+            //Console.WriteLine(System.String.Format("IsCurrentUserAndHand TrackedBodyId:{0} UserId:{1} {2}", Math.Abs(spineToHand.Z), VectorLength(shoulderLength), pressExtent>0));
+
+            HandPointer handPointer = new HandPointer
+            {
                 UserId = body.TrackingId,
                 HandEventType = handEventType,
                 HandType = handType,
                 X = spineToHand.X,
                 Y = spineToHand.Y,
-                PressExtent = spineToHand.Z,
-                 IsActive = handState != HandState.NotTracked && trackingConfidence == TrackingConfidence.High,
-                 IsInteractive = false,
-                 IsPressed = false,
-                 IsTracked = handState != HandState.NotTracked
+                PressExtent = pressExtent > 0 ? pressExtent : 0.0f,
+                IsActive = handState != HandState.NotTracked && trackingConfidence == TrackingConfidence.High,
+                IsInteractive = false,
+                IsPressed = pressExtent > 0,
+                IsTracked = handState != HandState.NotTracked
             };
 
             return handPointer;
@@ -216,6 +224,11 @@ namespace KinectDataTransmitter
                 Y = pointEnd.Y - pointStart.Y,
                 Z = pointEnd.Z - pointStart.Z
             };
+        }
+
+        static float VectorLength(Vector4 vector)
+        {
+            return (float)Math.Sqrt(Math.Pow((double)vector.X, 2) + Math.Pow((double)vector.Y, 2) + Math.Pow((double)vector.Z, 2));
         }
 
         #endregion Processing
