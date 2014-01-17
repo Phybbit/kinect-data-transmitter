@@ -74,13 +74,13 @@ namespace KinectDataTransmitter
                 else if (Converter.IsChangeHandTrackingBody(data))
                 {
                     ulong trackingId;
-                    Converter.DecodeChangeHandTrackingBody(data, out trackingId);
+                    Converter.DecodeChangeHandTrackingBody(Converter.GetDataContent(data), out trackingId);
                     ChangeHandTrackingBody(trackingId);
                 }
                 else if (Converter.IsKinectDeviceModeData(data))
                 {
                     KinectDeviceMode mode;
-                    Converter.DecodeKinectDeviceMode(data, out mode);
+                    Converter.DecodeKinectDeviceMode(Converter.GetDataContent(data), out mode);
                     ChangeKinectDeviceMode(mode);
                 }
                 else
@@ -102,11 +102,11 @@ namespace KinectDataTransmitter
 
         private static void ChangeKinectDeviceMode(KinectDeviceMode mode)
         {
-            _kinectDevice.IsTrackingSkeletons   = (KinectDeviceMode.Body & mode) != KinectDeviceMode.None;
-            _kinectDevice.IsTrackingFace        = (KinectDeviceMode.Face & mode) != KinectDeviceMode.None;
-            _kinectDevice.IsTrackingInteraction = (KinectDeviceMode.Interaction & mode) != KinectDeviceMode.None;
-            _kinectDevice.IsWritingColorStream  = (KinectDeviceMode.Color & mode) != KinectDeviceMode.None;
-            _kinectDevice.IsWritingDepthStream  = (KinectDeviceMode.Depth & mode) != KinectDeviceMode.None;
+            _kinectDevice.IsTrackingSkeletons   = (KinectDeviceMode.Body & mode)>0;
+            _kinectDevice.IsTrackingFace = (KinectDeviceMode.Face & mode) > 0;
+            _kinectDevice.IsTrackingInteraction = (KinectDeviceMode.Interaction & mode) > 0;
+            _kinectDevice.IsWritingColorStream = (KinectDeviceMode.Color & mode) > 0;
+            _kinectDevice.IsWritingDepthStream = (KinectDeviceMode.Depth & mode) > 0;
         }
     }
 }

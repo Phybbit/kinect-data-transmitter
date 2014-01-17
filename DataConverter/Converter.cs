@@ -564,7 +564,9 @@ namespace DataConverter
     public enum PoseType
     {
         None,
-        Swith
+        Swith,
+        LassoReight,
+        LassoLeft
     }
 
     [Flags]

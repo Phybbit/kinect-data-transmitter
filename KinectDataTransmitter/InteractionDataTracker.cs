@@ -145,6 +145,14 @@ namespace KinectDataTransmitter
             {
                 poseType = PoseType.Swith;
             }
+            else if (body.HandLeftState == HandState.Lasso && body.HandRightState != HandState.Lasso)
+            {
+                poseType = PoseType.LassoLeft;
+            }
+            else if (body.HandLeftState != HandState.Lasso && body.HandRightState == HandState.Lasso)
+            {
+                poseType = PoseType.LassoReight;
+            } 
 
             Console.WriteLine(Converter.EncodePoseAction(body.TrackingId, poseType));
         }
