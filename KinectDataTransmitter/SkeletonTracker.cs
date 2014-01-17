@@ -16,7 +16,7 @@ namespace KinectDataTransmitter
     public class SkeletonDataTracker : IDisposable
     {
         private bool _disposed;
-        private Dictionary<int, BodyData> _bodyData = new Dictionary<int, BodyData>();
+        private readonly Dictionary<int, BodyData> _bodyData = new Dictionary<int, BodyData>();
 
         public SkeletonDataTracker()
         {
@@ -80,7 +80,7 @@ namespace KinectDataTransmitter
             bodyData.PlayerIndex = playerIndex;
 
             var jointData = bodyData.JointData;
-            for (int i = 0; i < jointData.Length; i++ )
+            for (var i = 0; i < jointData.Length; i++ )
             {
                 jointData[i].State = JointTrackingState.NotTracked;
             }

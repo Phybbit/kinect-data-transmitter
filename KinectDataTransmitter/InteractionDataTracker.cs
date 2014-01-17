@@ -130,7 +130,6 @@ namespace KinectDataTransmitter
                                                         (HandEventType)handPointer.HandEventType,
                                                         (HandType)handPointer.HandType, (float)handPointer.X, (float)handPointer.Y, (float)handPointer.PressExtent,
                                                         handPointer.IsActive, handPointer.IsInteractive, handPointer.IsPressed, handPointer.IsTracked));
-
         }
 
         private void SendPoseActionData(Body body)

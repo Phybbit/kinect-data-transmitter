@@ -30,6 +30,7 @@ namespace KinectDataTransmitter
 
         public bool IsTrackingSkeletons { get; set; }
         public bool IsTrackingFace { get; set; }
+        public bool IsTrackingInteraction { get; set; }
         public bool IsWritingColorStream { get; set; }
         public bool IsWritingDepthStream { get; set; }
 
@@ -336,7 +337,10 @@ namespace KinectDataTransmitter
 
         private void ProcessData(long skeletonFrameNumber)
         {
-            _interactionTracker.ProcessData(this.bodies);
+            if (IsTrackingInteraction)
+            {
+                _interactionTracker.ProcessData(this.bodies);
+            }
             //if (IsTrackingFace)
             //{
             //    _faceTracker.ProcessData(_currentSensor, _colorImageFormat, _colorImageData,
@@ -358,6 +362,16 @@ namespace KinectDataTransmitter
             {
                 _streamWriter.ProcessDepthData(_depthImageData);
             }
+        }
+
+        public void OverrideHandTracking(ulong trackingId)
+        {
+            this.Sensor.BodyFrameSource.OverrideHandTracking(trackingId);
+        }
+
+        public void SetMode(KinectDeviceMode mode)
+        {
+            IsTrackingSkeletons = ((mode & KinectDeviceMode.Body) != KinectDeviceMode.None);
         }
     }
 }

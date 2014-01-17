@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -23,7 +21,9 @@ namespace DataConverter
         public const char InteractionNewUserFrameType = 'U';
         public const char InteractionUserLeftFrameType = 'u';
         public const char InteractionFrameType = 'I';
-        public const char PoseActionType = 'O';
+        public const char PoseActionType = 'p';
+        public const char ChangeHandTrackingBodyType = 'h';
+        public const char KinectDeviceModeType = 'k';
 
         /// <summary>
         /// Maximum number of joints in a skeleton.
@@ -327,6 +327,16 @@ namespace DataConverter
 
         }
 
+        public static void DecodeChangeHandTrackingBody(string data, out ulong trackingid)
+        {
+            trackingid = ulong.Parse(data, CultureInfo.InvariantCulture);
+        }
+
+        public static void DecodeKinectDeviceMode(string data, out KinectDeviceMode mode)
+        {
+            mode = (KinectDeviceMode)Enum.Parse(typeof(KinectDeviceMode), data);
+        }
+
         /// <summary>
         /// Encodes an error message to be sent through the data stream.
         /// </summary>
@@ -346,6 +356,16 @@ namespace DataConverter
         public static string EncodeInfo(string message)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", DebugType, message);
+        }
+
+        public static string EncodeChangeHandTrackingBody(ulong trackingId)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", ChangeHandTrackingBodyType, trackingId);
+        }
+
+        public static string EncodeKinectDeviceMode(KinectDeviceMode mode)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", KinectDeviceModeType, mode);
         }
 
         /// <summary>
@@ -413,6 +433,16 @@ namespace DataConverter
         public static bool IsPoseActionData(string data)
         {
             return data[0] == PoseActionType;
+        }
+
+        public static bool IsChangeHandTrackingBody(string data)
+        {
+            return data[0] == ChangeHandTrackingBodyType;
+        }
+
+        public static bool IsKinectDeviceModeData(string data)
+        {
+            return data[0] == KinectDeviceModeType;
         }
     }
 
@@ -535,5 +565,16 @@ namespace DataConverter
     {
         None,
         Swith
+    }
+
+    [Flags]
+    public enum KinectDeviceMode
+    {
+        None = 1 << 0,
+        Body =  1 << 1,
+        Color = 1 << 2,
+        Face = 1 << 3,
+        Interaction = 1 << 4,
+        Depth = 1 << 5
     }
 }
