@@ -60,7 +60,7 @@ namespace KinectDataTransmitter
             foreach (Body body in bodies)
             {
                 playerIndex++;
-                if (body.TrackingId == 0 && body.LeanTrackingState == TrackingState.NotTracked)
+                if (body.TrackingId == 0 && !body.IsTracked)
                 {
                     continue;
                 }
@@ -106,11 +106,17 @@ namespace KinectDataTransmitter
 
         private BodyData RetrieveOrCreateBodyDataFor(int playerIndex, ulong userId)
         {
+            BodyData bodyData;
             if (_bodyData.ContainsKey(playerIndex))
             {
-                return _bodyData[playerIndex];
+                bodyData = _bodyData[playerIndex];
+                if (bodyData.UserId == userId)
+                {
+                    return bodyData;
+                }
             }
-            var bodyData = SetupBodyData(userId);
+
+            bodyData = SetupBodyData(userId);
             _bodyData[playerIndex] = bodyData;
             return bodyData;
         }

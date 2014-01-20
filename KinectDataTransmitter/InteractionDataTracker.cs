@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using DataConverter;
 using Microsoft.Kinect;
+using JointType = Microsoft.Kinect.JointType;
 
 namespace KinectDataTransmitter
 {
@@ -38,13 +39,13 @@ namespace KinectDataTransmitter
         /// Information about a button control laid out in application UI.
         /// </summary>
         private readonly UIElementInfo buttonControl = new UIElementInfo
-            {
-                Left = 100.0,
-                Top = 100.0,
-                Right = 300.0,
-                Bottom = 300.0,
-                Id = "button1"
-            };
+        {
+            Left = 100.0,
+            Top = 100.0,
+            Right = 300.0,
+            Bottom = 300.0,
+            Id = "button1"
+        };
 
         #region PressAndGripAdjustment
 
@@ -77,7 +78,7 @@ namespace KinectDataTransmitter
         }
 
         #endregion PressAndGripAdjustment
-        
+
         #region Processing
 
         public void Dispose()
@@ -85,6 +86,7 @@ namespace KinectDataTransmitter
             Dispose(true);
             GC.SuppressFinalize(this);
         }
+
         protected virtual void Dispose(bool disposing)
         {
             if (!_disposed)
@@ -93,6 +95,7 @@ namespace KinectDataTransmitter
                 _disposed = true;
             }
         }
+
         public void ResetTracking()
         {
             // not sure if there is anything to dispose.
@@ -101,8 +104,7 @@ namespace KinectDataTransmitter
         /// <summary>
         /// Handler for the Kinect sensor's SkeletonFrameReady event
         /// </summary>
-        /// <param name="sender">object sending the event</param>
-        /// <param name="skeletonFrameReadyEventArgs">event arguments</param>
+        /// <param name="bodies"></param>
         public void ProcessData(Body[] bodies)
         {
             if (bodies == null)
@@ -111,12 +113,8 @@ namespace KinectDataTransmitter
             }
 
             // Look through the skeletons.
-            foreach (Body body in bodies)
+            foreach (var body in bodies.Where(body => body.TrackingId != 0 || body.IsTracked))
             {
-                if (body.TrackingId == 0 && body.LeanTrackingState == TrackingState.NotTracked)
-                {
-                    continue;
-                }
                 SendInteractionData(body);
                 SendPoseActionData(body);
             }
@@ -127,9 +125,10 @@ namespace KinectDataTransmitter
             HandPointer handPointer = ConvertHandPointerFromBodyAndHandType(body, handType);
 
             Console.WriteLine(Converter.EncodeInteraction(body.TrackingId,
-                                                        (HandEventType)handPointer.HandEventType,
-                                                        (HandType)handPointer.HandType, (float)handPointer.X, (float)handPointer.Y, (float)handPointer.PressExtent,
-                                                        handPointer.IsActive, handPointer.IsInteractive, handPointer.IsPressed, handPointer.IsTracked));
+                (HandEventType) handPointer.HandEventType,
+                (HandType) handPointer.HandType, (float) handPointer.X, (float) handPointer.Y,
+                (float) handPointer.PressExtent,
+                handPointer.IsActive, handPointer.IsInteractive, handPointer.IsPressed, handPointer.IsTracked));
         }
 
         private void SendPoseActionData(Body body)
@@ -139,22 +138,51 @@ namespace KinectDataTransmitter
                 return;
             }
 
-            PoseType poseType = PoseType.None;
+            var poseType = PoseType.None;
 
             if (body.HandLeftState == HandState.Closed && body.HandRightState == HandState.Closed)
             {
                 poseType = PoseType.Swith;
             }
-            else if (body.HandLeftState == HandState.Lasso && body.HandRightState != HandState.Lasso)
+            else if (IsHandLectUp(body) && body.HandLeftState == HandState.Lasso && body.HandRightState != HandState.Lasso)
             {
                 poseType = PoseType.LassoLeft;
             }
-            else if (body.HandLeftState != HandState.Lasso && body.HandRightState == HandState.Lasso)
+            else if (IsHandRightUp(body) && body.HandLeftState != HandState.Lasso && body.HandRightState == HandState.Lasso)
             {
                 poseType = PoseType.LassoReight;
-            } 
+            }
+            else if (IsHandsUp(body))
+            {
+                poseType = PoseType.Swith;
+            }
 
             Console.WriteLine(Converter.EncodePoseAction(body.TrackingId, poseType));
+        }
+
+        private static bool IsHandsUp(Body body)
+        {
+            var rightElbowY = body.Joints[JointType.ElbowRight].Position.Y;
+            var leftElbowY = body.Joints[JointType.ElbowLeft].Position.Y;
+            var headY = body.Joints[JointType.Head].Position.Y;
+
+            return (rightElbowY > headY) && (leftElbowY > headY);
+        }
+
+        private static bool IsHandRightUp(Body body)
+        {
+            var rightHandY = body.Joints[JointType.HandRight].Position.Y;
+            var headY = body.Joints[JointType.Head].Position.Y;
+
+            return rightHandY > headY;
+        }
+
+        private static bool IsHandLectUp(Body body)
+        {
+            var leftHandY = body.Joints[JointType.HandLeft].Position.Y;
+            var headY = body.Joints[JointType.Head].Position.Y;
+
+            return leftHandY > headY;
         }
 
         private void SendInteractionData(Body body)
