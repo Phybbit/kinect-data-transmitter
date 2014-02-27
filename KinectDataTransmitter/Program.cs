@@ -21,11 +21,11 @@ namespace KinectDataTransmitter
             try
             {
                 var kinect = new KinectDevice();
-                kinect.IsTrackingSkeletons = false;
+                kinect.IsTrackingSkeletons = true;
                 kinect.IsTrackingFace = false;
-                kinect.IsTrackingInteraction = false;
+                kinect.IsTrackingInteraction = true;
                 kinect.IsWritingDepthStream = false;
-                kinect.IsUsingInfraRedStream = true;
+                kinect.IsUsingInfraRedStream = false;
                 kinect.Initialize();
 
                 Thread pingThread = new Thread(SendPings);
