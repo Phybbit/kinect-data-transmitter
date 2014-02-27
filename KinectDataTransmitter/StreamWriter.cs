@@ -13,17 +13,13 @@ namespace KinectDataTransmitter
         private bool _disposed;
         private MemoryMappedFile _colorMemoryMappedFile;
         private MemoryMappedFile _depthMemoryMappedFile;
-
-        private const string ColorFileName = "KinectColorFrame";
-        private const string DepthFileName = "DepthColorFrame";
-
-        private long ColorFileSize = 640 * 480 * 4;
-        private long DepthFileSize = 640 * 480 * 2;
+        private MemoryMappedFile _infraredMemoryMappedFile;
 
         public StreamWriter()
         {
-            _colorMemoryMappedFile = MemoryMappedFile.CreateOrOpen(ColorFileName, ColorFileSize, MemoryMappedFileAccess.ReadWrite);
-            _depthMemoryMappedFile = MemoryMappedFile.CreateOrOpen(DepthFileName, DepthFileSize, MemoryMappedFileAccess.ReadWrite);
+            _colorMemoryMappedFile = MemoryMappedFile.CreateOrOpen(Converter.ColorStreamFileName, Converter.ColorStreamFileSize, MemoryMappedFileAccess.ReadWrite);
+            _depthMemoryMappedFile = MemoryMappedFile.CreateOrOpen(Converter.DepthStreamFileName, Converter.DepthStreamFileSize, MemoryMappedFileAccess.ReadWrite);
+            _infraredMemoryMappedFile = MemoryMappedFile.CreateOrOpen(Converter.InfraRedStreamFileName, Converter.InfraRedStreamFileSize, MemoryMappedFileAccess.ReadWrite);
         }
 
 
@@ -51,6 +47,10 @@ namespace KinectDataTransmitter
                 {
                     _depthMemoryMappedFile.Dispose();
                 }
+                if (_infraredMemoryMappedFile != null)
+                {
+                    _infraredMemoryMappedFile.Dispose();
+                }
                 _disposed = true;
             }
         }
@@ -75,6 +75,16 @@ namespace KinectDataTransmitter
             }
 
             Console.WriteLine(Converter.DepthFrameType);
+        }
+
+        public void ProcessInfraRedData(byte[] data)
+        {
+            using (var accessor = _infraredMemoryMappedFile.CreateViewAccessor(0, data.Length, MemoryMappedFileAccess.Write))
+            {
+                accessor.WriteArray(0, data, 0, data.Length);
+            }
+
+            Console.WriteLine(Converter.InfraRedFrameType);
         }
     }
 }

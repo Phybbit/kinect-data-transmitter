@@ -21,9 +21,12 @@ namespace KinectDataTransmitter
             try
             {
                 var kinect = new KinectDevice();
-                kinect.IsTrackingSkeletons = true;
-                kinect.IsTrackingFace = true;
-                kinect.IsWritingDepthStream = true;
+                kinect.IsTrackingSkeletons = false;
+                kinect.IsTrackingFace = false;
+                kinect.IsTrackingInteraction = false;
+                kinect.IsWritingDepthStream = false;
+                kinect.IsUsingInfraRedStream = true;
+                kinect.Initialize();
 
                 Thread pingThread = new Thread(SendPings);
                 pingThread.Start();
@@ -63,9 +66,9 @@ namespace KinectDataTransmitter
                 _nonAcknoledgedPings++;
                 Thread.Sleep(10000);
 
-                if (_nonAcknoledgedPings >= 2)
+                if (_nonAcknoledgedPings >= 3)
                 {
-                //    Environment.Exit(-1);
+                    //Environment.Exit(-1);
                 }
             }
         }

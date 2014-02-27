@@ -24,10 +24,12 @@ namespace KinectDataTransmitter
 
         public bool IsTrackingSkeletons { get; set; }
         public bool IsTrackingFace { get; set; }
+        public bool IsTrackingInteraction { get; set; }
         public bool IsWritingColorStream { get; set; }
         public bool IsWritingDepthStream { get; set; }
+        public bool IsUsingInfraRedStream { get; set; }
 
-        public KinectDevice()
+        public void Initialize()
         {
             _faceTracker = new FaceDataTracker();
             _skeletonTracker = new SkeletonDataTracker();
@@ -90,8 +92,13 @@ namespace KinectDataTransmitter
                 try
                 {
                     // InteractionStream needs 640x480 depth data stream
+                    var colorImageFormat = ColorImageFormat.RgbResolution640x480Fps30;
+                    if (IsUsingInfraRedStream)
+                    {
+                        colorImageFormat = ColorImageFormat.InfraredResolution640x480Fps30;
+                    }
+                    newSensor.ColorStream.Enable(colorImageFormat);
                     newSensor.DepthStream.Enable(DepthImageFormat.Resolution640x480Fps30);
-                    newSensor.ColorStream.Enable(ColorImageFormat.RgbResolution640x480Fps30);
                     try
                     {
                         // This will throw on non Kinect For Windows devices.
@@ -143,7 +150,7 @@ namespace KinectDataTransmitter
             DepthImageFrame depthImageFrame = null;
             SkeletonFrame skeletonFrame = null;
 
-            bool openColorFrame = (IsTrackingFace || IsWritingColorStream);
+            bool openColorFrame = (IsTrackingFace || IsWritingColorStream || IsUsingInfraRedStream);
             bool openDepthFrame = (IsTrackingFace || IsWritingDepthStream);
             bool openSkeletonFrame = (IsTrackingFace || IsTrackingSkeletons);
 
@@ -221,7 +228,10 @@ namespace KinectDataTransmitter
                 _depthImageData = new short[depthImageFrame.PixelDataLength];
             }
 
-            _interactionTracker.SensorDepthFrameReady(depthImageFrame);
+            if (IsTrackingInteraction)
+            {
+                _interactionTracker.SensorDepthFrameReady(depthImageFrame);
+            }
             depthImageFrame.CopyPixelDataTo(_depthImageData);
         }
 
@@ -242,7 +252,10 @@ namespace KinectDataTransmitter
 
         private void ProcessData(int skeletonFrameNumber)
         {
-            _interactionTracker.ProcessData(_skeletons, _skeletonFrameTimestamp);
+            if (IsTrackingInteraction)
+            {
+                _interactionTracker.ProcessData(_skeletons, _skeletonFrameTimestamp);
+            }
             if (IsTrackingFace)
             {
                 _faceTracker.ProcessData(_currentSensor, _colorImageFormat, _colorImageData,
@@ -263,6 +276,11 @@ namespace KinectDataTransmitter
             if (IsWritingDepthStream)
             {
                 _streamWriter.ProcessDepthData(_depthImageData);
+            }
+
+            if (IsUsingInfraRedStream)
+            {
+                _streamWriter.ProcessInfraRedData(_colorImageData);
             }
         }
     }

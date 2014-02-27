@@ -18,6 +18,7 @@ namespace DataConverter
         public const char FaceTrackingFrameType = 'F';
         public const char VideoFrameType = 'V';
         public const char DepthFrameType = 'D';
+        public const char InfraRedFrameType = 'R';
         public const char DebugType = 'd';
         public const char SkeletonFrameType = 'S';
         public const char InteractionNewUserFrameType = 'U';
@@ -32,19 +33,27 @@ namespace DataConverter
         /// <summary>
         /// The name of the file used to transfer color data.
         /// </summary>
-        private const string ColorFileName = "KinectColorFrame";
+        public const string ColorStreamFileName = "KinectColorFrame";
         /// <summary>
         /// The name of the file used to transfer depth data.
         /// </summary>
-        private const string DepthFileName = "DepthColorFrame";
+        public const string DepthStreamFileName = "KinectDepthFrame";
+        /// <summary>
+        /// The name of the file used to transfer infrared data.
+        /// </summary>
+        public const string InfraRedStreamFileName = "KinectInfraRedFrame";
         /// <summary>
         /// The size of the file used to transfer color data.
         /// </summary>
-        private const long ColorFileSize = 640 * 480 * 4;
+        public const long ColorStreamFileSize = 640 * 480 * 4;
         /// <summary>
         /// The size of the file used to transfer depth data.
         /// </summary>
-        private const long DepthFileSize = 640 * 480 * 2;
+        public const long DepthStreamFileSize = 640 * 480 * 2;
+        /// <summary>
+        /// The size of the file used to transfer infrared data.
+        /// </summary>
+        public const long InfraRedStreamFileSize = 640 * 480 * 2;
         /// <summary>
         /// The code corresponding to "read" access level.
         /// </summary>
@@ -91,22 +100,30 @@ namespace DataConverter
         [DllImport("kernel32.dll", SetLastError = true)]
         static extern bool UnmapViewOfFile(IntPtr lpBaseAddress);
 
-        private static byte[] _depthBytes = new byte[DepthFileSize]; // Unique allocation to avoid constant (and costly) garbage collections.
-        private static byte[] _colorBytes = new byte[ColorFileSize];
+        private static byte[] _depthBytes = new byte[DepthStreamFileSize]; // Unique allocation to avoid constant (and costly) garbage collections.
+        private static byte[] _colorBytes = new byte[ColorStreamFileSize];
+        private static byte[] _infraRedBytes = new byte[InfraRedStreamFileSize];
 
         /// <summary>
         /// Reads kinect's video stream data from the file mapping created by the kinect data transmitter.
         /// </summary>
         public static byte[] GetVideoStreamData()
         {
-            return ReadFromMappedFile(ColorFileName, _colorBytes);
+            return ReadFromMappedFile(ColorStreamFileName, _colorBytes);
         }
         /// <summary>
         /// Reads kinect's depth stream data from the file mapping created by the kinect data transmitter.
         /// </summary>
         public static byte[] GetDepthStreamData()
         {
-            return ReadFromMappedFile(DepthFileName, _depthBytes);
+            return ReadFromMappedFile(DepthStreamFileName, _depthBytes);
+        }
+        /// <summary>
+        /// Reads kinect's infrared stream data from the file mapping created by the kinect data transmitter.
+        /// </summary>
+        public static byte[] GetInfraRedStreamData()
+        {
+            return ReadFromMappedFile(InfraRedStreamFileName, _infraRedBytes);
         }
 
         private static byte[] ReadFromMappedFile(string filename, byte[] bytesBuffer)
@@ -354,6 +371,13 @@ namespace DataConverter
         public static bool IsDepthFrameData(string data)
         {
             return data[0] == DepthFrameType;
+        }
+        /// <summary>
+        /// Checks whether the given data is infrared frame data.
+        /// </summary>
+        public static bool IsInfraRedFrameData(string data)
+        {
+            return data[0] == InfraRedFrameType;
         }
         /// <summary>
         /// Checks whether the given data is an information message.
