@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -24,6 +22,9 @@ namespace DataConverter
         public const char InteractionNewUserFrameType = 'U';
         public const char InteractionUserLeftFrameType = 'u';
         public const char InteractionFrameType = 'I';
+        public const char PoseActionType = 'p';
+        public const char ChangeHandTrackingBodyType = 'h';
+        public const char KinectDeviceModeType = 'k';
 
         /// <summary>
         /// Maximum number of joints in a skeleton.
@@ -194,7 +195,7 @@ namespace DataConverter
 
             _stringBuilder.Remove(0, _stringBuilder.Length);
             _stringBuilder.AppendFormat(CultureInfo.InvariantCulture,"{0}|{1} {2} {3} ",
-                SkeletonFrameType, bodyData.UserId, (int)bodyData.TrackingState, bodyData.PlayerIndex);
+                SkeletonFrameType, bodyData.UserId, bodyData.IsTracked, bodyData.PlayerIndex);
             foreach (var jointData in bodyData.JointData)
             {
                 if (jointData.State == JointTrackingState.NotTracked)
@@ -212,19 +213,24 @@ namespace DataConverter
 
 
 
-        public static string EncodeNewInteractionUser(int skeletonTrackingId)
+        public static string EncodeNewInteractionUser(ulong skeletonTrackingId)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", InteractionNewUserFrameType, skeletonTrackingId);
         }
 
-        public static string EncodeInteraction(int skeletonTrackingId, HandEventType handEventType, HandType handType, float x, float y, float pressExtent, bool isActive, bool isInteractive, bool isPressed, bool isTracked)
+        public static string EncodeInteraction(ulong skeletonTrackingId, HandEventType handEventType, HandType handType, float x, float y, float pressExtent, bool isActive, bool isInteractive, bool isPressed, bool isTracked)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1} {2} {3} {4} {5} {6} {7} {8} {9} {10}", InteractionFrameType, skeletonTrackingId, handEventType, handType, x, y, pressExtent, isActive, isInteractive, isPressed, isTracked);
         }
 
-        public static string EncodeInteractionUserLeft(int id)
+        public static string EncodeInteractionUserLeft(ulong id)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", InteractionUserLeftFrameType, id);
+        }
+
+        public static string EncodePoseAction(ulong skeletonTrackingId, PoseType poseType)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0}|{1} {2}", PoseActionType, skeletonTrackingId, poseType);
         }
 
         /// <summary>
@@ -266,7 +272,7 @@ namespace DataConverter
         /// </summary>
         public static void DecodeSkeletonData(string data, out BodyData bodyData)
         {
-            const int jointsNumber = (int)JointType.NumberOfJoints;
+            const int jointsNumber = (int)JointType.Count;
             bodyData = new BodyData();
             bodyData.JointData = new JointData[jointsNumber];
             var jointsData = bodyData.JointData;
@@ -282,8 +288,8 @@ namespace DataConverter
             }
 
             string[] tokens = data.Split(' ');
-            bodyData.UserId = int.Parse(tokens[0], CultureInfo.InvariantCulture);
-            bodyData.TrackingState = (BodyTrackingState)int.Parse(tokens[1], CultureInfo.InvariantCulture);
+            bodyData.UserId = ulong.Parse(tokens[0], CultureInfo.InvariantCulture);
+            bodyData.IsTracked = bool.Parse(tokens[1]);
             bodyData.PlayerIndex = int.Parse(tokens[2], CultureInfo.InvariantCulture);
 
             const int jointDataOffset = 3;
@@ -312,7 +318,7 @@ namespace DataConverter
             var tokens = data.Split(' ');
 
             handPointer = new HandPointer();
-            handPointer.UserId = int.Parse(tokens[0], CultureInfo.InvariantCulture);
+            handPointer.UserId = ulong.Parse(tokens[0], CultureInfo.InvariantCulture);
             handPointer.HandEventType = (HandEventType)Enum.Parse(typeof(HandEventType), tokens[1]);
             handPointer.HandType = (HandType)Enum.Parse(typeof(HandType), tokens[2]);
             handPointer.X = float.Parse(tokens[3], CultureInfo.InvariantCulture);
@@ -329,7 +335,25 @@ namespace DataConverter
         {
             skeletonTrackingId = int.Parse(data, CultureInfo.InvariantCulture);
         }
-        
+
+        public static void DecodePoseActionData(string data, out ulong skeletonTrackingId, out PoseType poseType)
+        {
+            var tokens = data.Split(' ');
+            skeletonTrackingId = ulong.Parse(tokens[0], CultureInfo.InvariantCulture);
+            poseType = (PoseType)Enum.Parse(typeof(PoseType), tokens[1]);
+
+        }
+
+        public static void DecodeChangeHandTrackingBody(string data, out ulong trackingid)
+        {
+            trackingid = ulong.Parse(data, CultureInfo.InvariantCulture);
+        }
+
+        public static void DecodeKinectDeviceMode(string data, out KinectDeviceMode mode)
+        {
+            mode = (KinectDeviceMode)Enum.Parse(typeof(KinectDeviceMode), data);
+        }
+
         /// <summary>
         /// Encodes an error message to be sent through the data stream.
         /// </summary>
@@ -349,6 +373,16 @@ namespace DataConverter
         public static string EncodeInfo(string message)
         {
             return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", DebugType, message);
+        }
+
+        public static string EncodeChangeHandTrackingBody(ulong trackingId)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", ChangeHandTrackingBodyType, trackingId);
+        }
+
+        public static string EncodeKinectDeviceMode(KinectDeviceMode mode)
+        {
+            return string.Format(CultureInfo.InvariantCulture, "{0}|{1}", KinectDeviceModeType, mode);
         }
 
         /// <summary>
@@ -420,6 +454,20 @@ namespace DataConverter
         {
             return data[0] == InteractionFrameType;
         }
+        public static bool IsPoseActionData(string data)
+        {
+            return data[0] == PoseActionType;
+        }
+
+        public static bool IsChangeHandTrackingBody(string data)
+        {
+            return data[0] == ChangeHandTrackingBodyType;
+        }
+
+        public static bool IsKinectDeviceModeData(string data)
+        {
+            return data[0] == KinectDeviceModeType;
+        }
     }
 
 
@@ -429,28 +477,32 @@ namespace DataConverter
     /// </summary>
     public enum JointType
     {
-        HipCenter = 0,
-        Spine,
-        ShoulderCenter,
-        Head,
-        ShoulderLeft,
-        ElbowLeft,
-        WristLeft,
-        HandLeft,
-        ShoulderRight,
-        ElbowRight,
-        WristRight,
-        HandRight,
-        HipLeft,
-        KneeLeft,
-        AnkleLeft,
-        FootLeft,
-        HipRight,
-        KneeRight,
-        AnkleRight,
-        FootRight,
-
-        NumberOfJoints
+        SpineBase = 0,
+        SpineMid = 1,
+        Neck = 2,
+        Head = 3,
+        ShoulderLeft = 4,
+        ElbowLeft = 5,
+        WristLeft = 6,
+        HandLeft = 7,
+        ShoulderRight = 8,
+        ElbowRight = 9,
+        WristRight = 10,
+        HandRight = 11,
+        HipLeft = 12,
+        KneeLeft = 13,
+        AnkleLeft = 14,
+        FootLeft = 15,
+        HipRight = 16,
+        KneeRight = 17,
+        AnkleRight = 18,
+        FootRight = 19,
+        SpineShoulder = 20,
+        HandTipLeft = 21,
+        ThumbLeft = 22,
+        HandTipRight = 23,
+        ThumbRight = 24,
+        Count = 25,
     }
 
     public enum BodyTrackingState
@@ -483,7 +535,7 @@ namespace DataConverter
 
     public struct HandPointer
     {
-        public int UserId;
+        public ulong UserId;
         public HandEventType HandEventType;
         public HandType HandType;
         public float X;
@@ -497,9 +549,9 @@ namespace DataConverter
 
     public struct BodyData
     {
-        public int UserId;
+        public ulong UserId;
         public int PlayerIndex;
-        public BodyTrackingState TrackingState;
+        public bool IsTracked;
         public JointData[] JointData;
     }
 
@@ -531,5 +583,24 @@ namespace DataConverter
         public float RotX;
         public float RotY;
         public float RotZ;
+    }
+    
+    public enum PoseType
+    {
+        None,
+        Swith,
+        LassoReight,
+        LassoLeft
+    }
+
+    [Flags]
+    public enum KinectDeviceMode
+    {
+        None = 1 << 0,
+        Body =  1 << 1,
+        Color = 1 << 2,
+        Face = 1 << 3,
+        Interaction = 1 << 4,
+        Depth = 1 << 5
     }
 }

@@ -16,7 +16,7 @@ namespace KinectDataTransmitter
     public class SkeletonDataTracker : IDisposable
     {
         private bool _disposed;
-        private Dictionary<int, BodyData> _bodyData = new Dictionary<int, BodyData>();
+        private readonly Dictionary<int, BodyData> _bodyData = new Dictionary<int, BodyData>();
 
         public SkeletonDataTracker()
         {
@@ -47,49 +47,44 @@ namespace KinectDataTransmitter
         {
             // not sure if there is anything to dispose.
         }
-        
-        public void ProcessData(Skeleton[] skeletons)
+
+        public void ProcessData(Body[] bodies)
         {
-            if (skeletons == null)
+            if (bodies == null)
             {
                 return;
             }
 
             // Look through the skeletons.
             int playerIndex = -1;
-            foreach (var skeleton in skeletons)
+            foreach (Body body in bodies)
             {
                 playerIndex++;
-                if (skeleton.TrackingId == 0 && skeleton.TrackingState == SkeletonTrackingState.NotTracked)
+                if (body.TrackingId == 0 && !body.IsTracked)
                 {
                     continue;
                 }
-                SendSkeletonData(skeleton, playerIndex);
+                SendSkeletonData(body, playerIndex);
             }
         }
 
-        private void SendSkeletonData(Skeleton skeleton, int playerIndex)
+        private void SendSkeletonData(Body body, int playerIndex)
         {
-            if (skeleton == null)
+            if (body == null)
             {
                 return;
             }
 
-            if (skeleton.TrackingId > 5)
-            {
-            }
-
-            var bodyData = RetrieveOrCreateBodyDataFor(skeleton.TrackingId);
-            bodyData.TrackingState = (BodyTrackingState)skeleton.TrackingState;
+            var bodyData = RetrieveOrCreateBodyDataFor(playerIndex, body.TrackingId);
+            bodyData.IsTracked = body.IsTracked;
             bodyData.PlayerIndex = playerIndex;
 
             var jointData = bodyData.JointData;
-            for (int i = 0; i < jointData.Length; i++ )
+            for (var i = 0; i < jointData.Length; i++ )
             {
                 jointData[i].State = JointTrackingState.NotTracked;
             }
-
-            foreach (Joint joint in skeleton.Joints)
+            foreach (Joint joint in body.Joints.Values)
             {
                 int type = (int)joint.JointType;
                 jointData[type].State = (JointTrackingState) joint.TrackingState;
@@ -98,34 +93,40 @@ namespace KinectDataTransmitter
                 jointData[type].PositionZ = joint.Position.Z;
             }
 
-            foreach (BoneOrientation boneOrientations in skeleton.BoneOrientations)
+            foreach (JointOrientation jointOrientation in body.JointOrientations.Values)
             {
-                int type = (int)boneOrientations.EndJoint;
-                jointData[type].QuaternionX = boneOrientations.HierarchicalRotation.Quaternion.X;
-                jointData[type].QuaternionY = boneOrientations.HierarchicalRotation.Quaternion.Y;
-                jointData[type].QuaternionZ = boneOrientations.HierarchicalRotation.Quaternion.Z;
-                jointData[type].QuaternionW = boneOrientations.HierarchicalRotation.Quaternion.W;
+                int type = (int)jointOrientation.JointType;
+                jointData[type].QuaternionX = jointOrientation.Orientation.X;
+                jointData[type].QuaternionY = jointOrientation.Orientation.Y;
+                jointData[type].QuaternionZ = jointOrientation.Orientation.Z;
+                jointData[type].QuaternionW = jointOrientation.Orientation.W;
             }
             Console.WriteLine(Converter.EncodeSkeletonData(bodyData));
         }
 
-        private BodyData RetrieveOrCreateBodyDataFor(int skeletonId)
+        private BodyData RetrieveOrCreateBodyDataFor(int playerIndex, ulong userId)
         {
-            if (_bodyData.ContainsKey(skeletonId))
+            BodyData bodyData;
+            if (_bodyData.ContainsKey(playerIndex))
             {
-                return _bodyData[skeletonId];
+                bodyData = _bodyData[playerIndex];
+                if (bodyData.UserId == userId)
+                {
+                    return bodyData;
+                }
             }
-            var bodyData = SetupBodyData(skeletonId);
-            _bodyData[skeletonId] = bodyData;
+
+            bodyData = SetupBodyData(userId);
+            _bodyData[playerIndex] = bodyData;
             return bodyData;
         }
 
 
-        private BodyData SetupBodyData(int userId)
+        private BodyData SetupBodyData(ulong userId)
         {
             var bodyData = new BodyData();
             bodyData.UserId = userId;
-            const int jointsNumber = (int)DataConverter.JointType.NumberOfJoints;
+            const int jointsNumber = (int)DataConverter.JointType.Count;
             var jointData = new JointData[jointsNumber];
             for (int i = 0; i < jointsNumber; i++)
             {

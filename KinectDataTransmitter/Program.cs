@@ -9,7 +9,7 @@ namespace KinectDataTransmitter
     class Program
     {
         private static int _nonAcknoledgedPings;
-
+        private static KinectDevice _kinectDevice;
         static void Main(string[] args)
         {
             if (KinectSensor.KinectSensors.Count == 0)
@@ -20,36 +20,29 @@ namespace KinectDataTransmitter
 
             try
             {
-                var kinect = new KinectDevice();
-                kinect.IsTrackingSkeletons = false;
-                kinect.IsTrackingFace = false;
-                kinect.IsTrackingInteraction = false;
-                kinect.IsWritingDepthStream = false;
-                kinect.IsUsingInfraRedStream = true;
-                kinect.Initialize();
 
-                Thread pingThread = new Thread(SendPings);
+                _kinectDevice = new KinectDevice();
+                _kinectDevice.IsTrackingSkeletons = true;
+                //_kinectDevice.IsTrackingFace = true;
+                _kinectDevice.IsWritingDepthStream = true;
+                _kinectDevice.IsTrackingInteraction = true;
+                //_kinectDevice.IsUsingInfraRedStream = true;
+                _kinectDevice.Initialize();
+
+                var pingThread = new Thread(SendPings);
                 pingThread.Start();
 
                 string inputStr = null;
                 while ((inputStr = Console.ReadLine()) != null)
                 {
                     const string byteOrderMark = "ï»¿";
-                    if (inputStr[0] == 0xEF && inputStr[1] == 0xBB && inputStr[2] == 0xBF)
+                    if (inputStr.Length < 3|| inputStr.Length > 3 && inputStr[0] == 0xEF && inputStr[1] == 0xBB && inputStr[2] == 0xBF)
                     {
                         // ignore the bom.
                         continue;
                     }
 
-                    if (Converter.IsPing(inputStr))
-                    {
-                        _nonAcknoledgedPings--;
-                    }
-                    else
-                    {
-                        //int i = inputStr.IndexOf('1');
-                        //Console.WriteLine(inputStr + " " + i + " " + (inputStr[0] == 0xEF) + " " + (inputStr[1] == 0xBB) + " " + (inputStr[2] == 0xBF));
-                    }
+                    ParseReceivedData(inputStr);
                 }
             }
             catch (Exception e)
@@ -71,6 +64,52 @@ namespace KinectDataTransmitter
                     //Environment.Exit(-1);
                 }
             }
+        }
+
+        private static void ParseReceivedData(string data)
+        {
+            try
+            {
+                if (Converter.IsPing(data))
+                {
+                    _nonAcknoledgedPings--;
+                }
+                else if (Converter.IsChangeHandTrackingBody(data))
+                {
+                    ulong trackingId;
+                    Converter.DecodeChangeHandTrackingBody(Converter.GetDataContent(data), out trackingId);
+                    ChangeHandTrackingBody(trackingId);
+                }
+                else if (Converter.IsKinectDeviceModeData(data))
+                {
+                    KinectDeviceMode mode;
+                    Converter.DecodeKinectDeviceMode(Converter.GetDataContent(data), out mode);
+                    ChangeKinectDeviceMode(mode);
+                }
+                else
+                {
+                    //int i = inputStr.IndexOf('1');
+                    //Console.WriteLine(inputStr + " " + i + " " + (inputStr[0] == 0xEF) + " " + (inputStr[1] == 0xBB) + " " + (inputStr[2] == 0xBF));
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(Converter.EncodeError(e.Message));
+            }
+        }
+
+        private static void ChangeHandTrackingBody(ulong trackingId)
+        {
+            _kinectDevice.OverrideHandTracking(trackingId);
+        }
+
+        private static void ChangeKinectDeviceMode(KinectDeviceMode mode)
+        {
+            _kinectDevice.IsTrackingSkeletons   = (KinectDeviceMode.Body & mode)>0;
+            _kinectDevice.IsTrackingFace = (KinectDeviceMode.Face & mode) > 0;
+            _kinectDevice.IsTrackingInteraction = (KinectDeviceMode.Interaction & mode) > 0;
+            _kinectDevice.IsWritingColorStream = (KinectDeviceMode.Color & mode) > 0;
+            _kinectDevice.IsWritingDepthStream = (KinectDeviceMode.Depth & mode) > 0;
         }
     }
 }

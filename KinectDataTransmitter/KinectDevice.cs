@@ -1,26 +1,29 @@
 ﻿using System;
 using DataConverter;
 using Microsoft.Kinect;
-using Microsoft.Kinect.Toolkit;
 using System.IO.MemoryMappedFiles;
 
 namespace KinectDataTransmitter
 {
     public class KinectDevice
     {
-        public readonly KinectSensorChooser SensorChooser = new KinectSensorChooser();
-        private ColorImageFormat _colorImageFormat = ColorImageFormat.Undefined;
+        private readonly int bytesPerPixel = (int)ColorImageFormat.Bgra;
+
+        public KinectSensor Sensor = null;
         private byte[] _colorImageData;
-        private DepthImageFormat _depthImageFormat = DepthImageFormat.Undefined;
-        private short[] _depthImageData;
-        private Skeleton[] _skeletons;
+        private ushort[] _depthImageData;
+        private Body[] bodies = null;
+
+        private CoordinateMapper coordinateMapper = null;
+
+        private MultiSourceFrameReader multiSourceFrameReader = null;
 
         private SkeletonDataTracker _skeletonTracker;
         private FaceDataTracker _faceTracker;
         private InteractionDataTracker _interactionTracker;
         private StreamWriter _streamWriter;
-        private KinectSensor _currentSensor;
-        private long _skeletonFrameTimestamp;
+        //private KinectSensor _currentSensor;
+        //private long _skeletonFrameTimestamp;
 
         public bool IsTrackingSkeletons { get; set; }
         public bool IsTrackingFace { get; set; }
@@ -35,29 +38,251 @@ namespace KinectDataTransmitter
             _skeletonTracker = new SkeletonDataTracker();
             _streamWriter = new StreamWriter();
             _interactionTracker = new InteractionDataTracker();
-
-            SensorChooser.KinectChanged += OnKinectChanged;
-
-            SensorChooser.PropertyChanged += (sender, args) =>
-                { if (args.PropertyName == "Status") HandleSensorChooserStatusChanged(); };
             try
             {
-                SensorChooser.Start();
+                this.Sensor = KinectSensor.Default;
+
+                if (this.Sensor != null)
+                {
+                    // get the coordinate mapper
+                    this.coordinateMapper = this.Sensor.CoordinateMapper;
+
+                    // open the sensor
+                    this.Sensor.Open();
+
+                    this.bodies = new Body[this.Sensor.BodyFrameSource.BodyCount];
+                    
+                    // open the reader for the frames
+
+
+                    FrameSourceTypes frameSourceTypes = FrameSourceTypes.None;
+                    if (IsTrackingSkeletons || true)
+                    {
+                        frameSourceTypes = frameSourceTypes | FrameSourceTypes.Body;
+                    }
+
+                    if (IsWritingColorStream)
+                    {
+                        frameSourceTypes = frameSourceTypes | FrameSourceTypes.Color;
+                    }
+
+                        if (IsWritingDepthStream || true)
+                    {
+                        frameSourceTypes = frameSourceTypes | FrameSourceTypes.Depth;
+                    }
+
+                    this.multiSourceFrameReader = this.Sensor.OpenMultiSourceFrameReader(frameSourceTypes);
+
+                    FrameDescription colorFrameDescription = this.Sensor.ColorFrameSource.FrameDescription;
+                    FrameDescription depthFrameDescription = this.Sensor.DepthFrameSource.FrameDescription;
+
+                    this._colorImageData = new byte[colorFrameDescription.Width * colorFrameDescription.Height * this.bytesPerPixel];
+                    this._depthImageData = new ushort[depthFrameDescription.Width * depthFrameDescription.Height];
+                    //Console.WriteLine("exist sensor");
+                }
+                else
+                {
+                    //Console.WriteLine("no sensor");
+                }
+
+                this.setReaders();
             }
             catch (Exception e)
             {
                 Console.WriteLine(Converter.EncodeError(e.Message));
                 throw;
             }
+
+            this.Sensor.PropertyChanged += (sender, args) =>
+                { if (args.PropertyName == "Status") HandleSensorChooserStatusChanged(); };
+
         }
+
+        private void setReaders()
+        {
+            if (this.multiSourceFrameReader != null)
+            {
+                this.multiSourceFrameReader.MultiSourceFrameArrived += this.Reader_MultiSourceFrameArrived;
+            }
+        }
+
+        private void Reader_MultiSourceFrameArrived(object sender, MultiSourceFrameArrivedEventArgs e)
+        {
+            MultiSourceFrameReference frameReference = e.FrameReference;
+            MultiSourceFrame multiSourceFrame = frameReference.AcquireFrame();
+            DepthFrame depthFrame = null;
+            ColorFrame colorFrame = null;
+            BodyFrame bodyFrame = null;
+
+            try
+            {
+                multiSourceFrame = frameReference.AcquireFrame();
+
+                if (multiSourceFrame != null)
+                {
+                    // MultiSourceFrame is IDisposable
+                    using (multiSourceFrame)
+                    {
+                        DepthFrameReference depthFrameReference = multiSourceFrame.DepthFrameReference;
+                        ColorFrameReference colorFrameReference = multiSourceFrame.ColorFrameReference;
+                        BodyFrameReference  bodyFrameReference = multiSourceFrame.BodyFrameReference;
+
+                        depthFrame = depthFrameReference.AcquireFrame();
+                        colorFrame = colorFrameReference.AcquireFrame();
+                        bodyFrame  = bodyFrameReference.AcquireFrame();
+
+                        long frameNumber = -1;
+                        if ((depthFrame != null))
+                        {
+                            ProcessFrame(depthFrame);
+
+                            frameNumber = (depthFrame != null ? depthFrame.RelativeTime : -1);
+                        }
+                        if ((colorFrame != null))
+                        {
+                            ProcessFrame(colorFrame);
+
+                            frameNumber = (colorFrame != null ? colorFrame.RelativeTime : -1);
+                        }
+                        if ((bodyFrame != null))
+                        {
+                            ProcessFrame(bodyFrame);
+
+                            frameNumber = (bodyFrame != null ? bodyFrame.RelativeTime : -1);
+                        }
+
+                        if ((depthFrame != null) || (colorFrame != null) || (bodyFrame != null))
+                        {
+                            ProcessData(frameNumber);
+                        }
+
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // ignore if the frame is no longer available
+            }
+            finally
+            {
+                // MultiSourceFrame, DepthFrame, ColorFrame, BodyIndexFrame are IDispoable
+                if (depthFrame != null)
+                {
+                    depthFrame.Dispose();
+                    depthFrame = null;
+                }
+
+                if (colorFrame != null)
+                {
+                    colorFrame.Dispose();
+                    colorFrame = null;
+                }
+
+                if (bodyFrame != null)
+                {
+                    bodyFrame.Dispose();
+                    bodyFrame = null;
+                }
+
+                if (multiSourceFrame != null)
+                {
+                    multiSourceFrame.Dispose();
+                    multiSourceFrame = null;
+                }
+            }
+        }
+        /// <summary>
+        /// Handles the body frame data arriving from the sensor
+        /// </summary>
+        /// <param name="sender">object sending the event</param>
+        /// <param name="e">event arguments</param>
+        private void Reader_FrameArrived(object sender, BodyFrameArrivedEventArgs e)
+        {
+            BodyFrameReference frameReference = e.FrameReference;
+
+            try
+            {
+                BodyFrame frame = frameReference.AcquireFrame();
+
+                if (frame != null)
+                {
+                    // BodyFrame is IDisposable
+                    using (frame)
+                    {
+                        ProcessFrame(frame);
+
+                        long skeletonFrameNumber = (frame != null ? frame.RelativeTime : -1);
+                            ProcessData(skeletonFrameNumber);
+                        }
+                    
+                }
+            }
+            catch (Exception)
+            {
+                // ignore if the frame is no longer available
+            }
+        }
+
+        private void Reader_FrameArrived(object sender, DepthFrameArrivedEventArgs e)
+        {
+            DepthFrameReference frameReference = e.FrameReference;
+
+
+            try
+            {
+                DepthFrame frame = frameReference.AcquireFrame();
+
+                if (frame != null)
+                {
+                    // DepthFrame is IDisposable
+                    using (frame)
+                    {
+                        ProcessFrame(frame);
+                        long skeletonFrameNumber = (frame != null ? frame.RelativeTime : -1);
+                        ProcessData(skeletonFrameNumber);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // ignore if the frame is no longer available
+            }
+        }
+
+        private void Reader_FrameArrived(object sender, ColorFrameArrivedEventArgs e)
+        {
+            ColorFrameReference frameReference = e.FrameReference;
+
+            try
+            {
+                ColorFrame frame = frameReference.AcquireFrame();
+
+                if (frame != null)
+                {
+                    // ColorFrame is IDisposable
+                    using (frame)
+                    {
+                        ProcessFrame(frame);
+                        long skeletonFrameNumber = (frame != null ? frame.RelativeTime : -1);
+                        ProcessData(skeletonFrameNumber);
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // ignore if the frame is no longer available
+            }
+        }
+    
+
 
         private void HandleSensorChooserStatusChanged()
         {
-            string message = string.Format("The kinect sensor is status changed to: {0}.", SensorChooser.Status);
-            switch (SensorChooser.Status)
+            string message = string.Format("The kinect sensor is status changed to: {0}.", this.Sensor.Status);
+            switch (this.Sensor.Status)
             {
-                case ChooserStatus.SensorInitializing:
-                case ChooserStatus.SensorStarted:
+                case KinectStatus.Initializing:
+                case KinectStatus.Connected:
                     Console.WriteLine(Converter.EncodeInfo(message));
                     break;
                 default:
@@ -66,206 +291,59 @@ namespace KinectDataTransmitter
             }
         }
 
-        private void OnKinectChanged(object sender, KinectChangedEventArgs kinectChangedEventArgs)
+        private void ProcessFrame(ColorFrame colorFrame)
         {
-            KinectSensor oldSensor = kinectChangedEventArgs.OldSensor;
-            KinectSensor newSensor = kinectChangedEventArgs.NewSensor;
-
-            if (oldSensor != null)
-            {
-                oldSensor.AllFramesReady -= OnAllFramesReady;
-                oldSensor.ColorStream.Disable();
-                oldSensor.DepthStream.Disable();
-                oldSensor.DepthStream.Range = DepthRange.Default;
-                oldSensor.SkeletonStream.Disable();
-                oldSensor.SkeletonStream.EnableTrackingInNearRange = false;
-                oldSensor.SkeletonStream.TrackingMode = SkeletonTrackingMode.Default;
-                _currentSensor = null;
-
-                _faceTracker.ResetTracking();
-                _skeletonTracker.ResetTracking();
-                _interactionTracker.ResetTracking();
-            }
-
-            if (newSensor != null)
-            {
-                try
-                {
-                    // InteractionStream needs 640x480 depth data stream
-                    var colorImageFormat = ColorImageFormat.RgbResolution640x480Fps30;
-                    if (IsUsingInfraRedStream)
-                    {
-                        colorImageFormat = ColorImageFormat.InfraredResolution640x480Fps30;
-                    }
-                    newSensor.ColorStream.Enable(colorImageFormat);
-                    newSensor.DepthStream.Enable(DepthImageFormat.Resolution640x480Fps30);
-                    try
-                    {
-                        // This will throw on non Kinect For Windows devices.
-                        // Interactions work better in near range
-                        newSensor.DepthStream.Range = DepthRange.Near;
-                        newSensor.SkeletonStream.EnableTrackingInNearRange = true;
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        newSensor.DepthStream.Range = DepthRange.Default;
-                        newSensor.SkeletonStream.EnableTrackingInNearRange = false;
-                    }
-
-                    TransformSmoothParameters smoothingParam = new TransformSmoothParameters();
-                    {
-                        smoothingParam.Smoothing = 0.5f;
-                        smoothingParam.Correction = 0.5f;
-                        smoothingParam.Prediction = 0.5f;
-                        smoothingParam.JitterRadius = 0.05f;
-                        smoothingParam.MaxDeviationRadius = 0.04f;
-                    }
-
-                    newSensor.SkeletonStream.TrackingMode = SkeletonTrackingMode.Default;
-                    newSensor.SkeletonStream.Enable(smoothingParam);
-                    _currentSensor = newSensor;
-                    _interactionTracker.InitializeTracking(_currentSensor);
-                    newSensor.AllFramesReady += OnAllFramesReady;
-                }
-                catch (InvalidOperationException e)
-                {
-                    // This exception can be thrown when we are trying to
-                    // enable streams on a device that has gone away.  This
-                    // can occur, say, in app shutdown scenarios when the sensor
-                    // goes away between the time it changed status and the
-                    // time we get the sensor changed notification.
-                    //
-                    // Behavior here is to just eat the exception and assume
-                    // another notification will come along if a sensor
-                    // comes back.
-                    Console.WriteLine(Converter.EncodeError("KinectDevice.OnKinectChanged: threw an exception. It might be safe to ignore this if the app was shuting down. Message: " + e.Message));
-                }
-            }
-        }
-
-
-        private void OnAllFramesReady(object sender, AllFramesReadyEventArgs allFramesReadyEventArgs)
-        {
-            ColorImageFrame colorImageFrame = null;
-            DepthImageFrame depthImageFrame = null;
-            SkeletonFrame skeletonFrame = null;
-
-            bool openColorFrame = (IsTrackingFace || IsWritingColorStream || IsUsingInfraRedStream);
-            bool openDepthFrame = (IsTrackingFace || IsWritingDepthStream);
-            bool openSkeletonFrame = (IsTrackingFace || IsTrackingSkeletons);
-
-            try
-            {
-                if (openColorFrame)
-                {
-                    colorImageFrame = allFramesReadyEventArgs.OpenColorImageFrame();
-                }
-                if (openDepthFrame)
-                {
-                    depthImageFrame = allFramesReadyEventArgs.OpenDepthImageFrame();
-                }
-                if (openSkeletonFrame)
-                {
-                    skeletonFrame = allFramesReadyEventArgs.OpenSkeletonFrame();
-                }
-
-                ProcessFrame(colorImageFrame);
-                ProcessFrame(depthImageFrame);
-                ProcessFrame(skeletonFrame);
-
-                int skeletonFrameNumber = (skeletonFrame != null ? skeletonFrame.FrameNumber : -1);
-                ProcessData(skeletonFrameNumber);
-            }
-            finally
-            {
-                if (colorImageFrame != null)
-                {
-                    colorImageFrame.Dispose();
-                }
-
-                if (depthImageFrame != null)
-                {
-                    depthImageFrame.Dispose();
-                }
-
-                if (skeletonFrame != null)
-                {
-                    skeletonFrame.Dispose();
-                }
-            }
-        }
-
-        private void ProcessFrame(ColorImageFrame colorImageFrame)
-        {
-            if (colorImageFrame == null)
+            if (colorFrame == null)
             {
                 return;
             }
 
-            // Make a copy of the color frame for displaying.
-            var hasNewFormat = _colorImageFormat != colorImageFrame.Format;
-            if (hasNewFormat)
+            FrameDescription frameDescription = colorFrame.FrameDescription;
+            if (colorFrame.RawColorImageFormat == ColorImageFormat.Bgra)
             {
-                _colorImageFormat = colorImageFrame.Format;
-                _colorImageData = new byte[colorImageFrame.PixelDataLength];
+                colorFrame.CopyRawFrameDataToArray(this._colorImageData);
             }
-
-            colorImageFrame.CopyPixelDataTo(_colorImageData);
+            else
+            {
+                colorFrame.CopyConvertedFrameDataToArray(this._colorImageData, ColorImageFormat.Bgra);
+            }
         }
 
-        private void ProcessFrame(DepthImageFrame depthImageFrame)
+        private void ProcessFrame(DepthFrame depthFrame)
         {
-            if (depthImageFrame == null)
+            if (depthFrame == null)
             {
                 return;
             }
 
-            // Make a copy of the color frame for displaying.
-            var hasNewFormat = _depthImageFormat != depthImageFrame.Format;
-            if (hasNewFormat)
-            {
-                _depthImageFormat = depthImageFrame.Format;
-                _depthImageData = new short[depthImageFrame.PixelDataLength];
-            }
-
-            if (IsTrackingInteraction)
-            {
-                _interactionTracker.SensorDepthFrameReady(depthImageFrame);
-            }
-            depthImageFrame.CopyPixelDataTo(_depthImageData);
+            depthFrame.CopyFrameDataToArray(this._depthImageData);
+            //_interactionTracker.SensorDepthFrameReady(depthImageFrame);
         }
 
-        private void ProcessFrame(SkeletonFrame skeletonFrame)
+        private void ProcessFrame(BodyFrame bodyFrame)
         {
-            if (skeletonFrame == null)
+            if (bodyFrame == null)
             {
                 return;
             }
 
-            if (_skeletons == null || _skeletons.Length != skeletonFrame.SkeletonArrayLength)
-            {
-                _skeletons = new Skeleton[skeletonFrame.SkeletonArrayLength];
-            }
-            skeletonFrame.CopySkeletonDataTo(_skeletons);
-            _skeletonFrameTimestamp = skeletonFrame.Timestamp;
+            // The first time GetAndRefreshBodyData is called, Kinect will allocate each Body in the array.
+            // As long as those body objects are not disposed and not set to null in the array,
+            // those body objects will be re-used.
+            bodyFrame.GetAndRefreshBodyData(this.bodies);
         }
 
-        private void ProcessData(int skeletonFrameNumber)
+        private void ProcessData(long skeletonFrameNumber)
         {
-            if (IsTrackingInteraction)
-            {
-                _interactionTracker.ProcessData(_skeletons, _skeletonFrameTimestamp);
-            }
             if (IsTrackingFace)
             {
-                _faceTracker.ProcessData(_currentSensor, _colorImageFormat, _colorImageData,
-                                         _depthImageFormat, _depthImageData, _skeletons,
-                                         skeletonFrameNumber);
+                _interactionTracker.ProcessData(this.bodies);
             }
+
 
             if (IsTrackingSkeletons)
             {
-                _skeletonTracker.ProcessData(_skeletons);
+                _skeletonTracker.ProcessData(this.bodies);
             }
 
             if (IsWritingColorStream)
@@ -282,6 +360,16 @@ namespace KinectDataTransmitter
             {
                 _streamWriter.ProcessInfraRedData(_colorImageData);
             }
+        }
+
+        public void OverrideHandTracking(ulong trackingId)
+        {
+            this.Sensor.BodyFrameSource.OverrideHandTracking(trackingId);
+        }
+
+        public void SetMode(KinectDeviceMode mode)
+        {
+            IsTrackingSkeletons = ((mode & KinectDeviceMode.Body) != KinectDeviceMode.None);
         }
     }
 }
