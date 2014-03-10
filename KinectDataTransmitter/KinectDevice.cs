@@ -7,11 +7,12 @@ namespace KinectDataTransmitter
 {
     public class KinectDevice
     {
-        private readonly int bytesPerPixel = (int)ColorImageFormat.Bgra;
+        private readonly int bytesPerColorPixel = (int)ColorImageFormat.Bgra;
 
         public KinectSensor Sensor = null;
         private byte[] _colorImageData;
         private ushort[] _depthImageData;
+        private ushort[] _infraredImageData;
         private Body[] bodies = null;
 
         private CoordinateMapper coordinateMapper = null;
@@ -55,7 +56,7 @@ namespace KinectDataTransmitter
                     // open the reader for the frames
 
 
-                    FrameSourceTypes frameSourceTypes = FrameSourceTypes.None;
+                    FrameSourceTypes frameSourceTypes = FrameSourceTypes.Infrared;
                     if (IsTrackingSkeletons || true)
                     {
                         frameSourceTypes = frameSourceTypes | FrameSourceTypes.Body;
@@ -74,9 +75,11 @@ namespace KinectDataTransmitter
                     this.multiSourceFrameReader = this.Sensor.OpenMultiSourceFrameReader(frameSourceTypes);
 
                     FrameDescription colorFrameDescription = this.Sensor.ColorFrameSource.FrameDescription;
+                    FrameDescription infraredFrameDescription = this.Sensor.InfraredFrameSource.FrameDescription;
                     FrameDescription depthFrameDescription = this.Sensor.DepthFrameSource.FrameDescription;
 
-                    this._colorImageData = new byte[colorFrameDescription.Width * colorFrameDescription.Height * this.bytesPerPixel];
+                    this._colorImageData = new byte[colorFrameDescription.Width * colorFrameDescription.Height * this.bytesPerColorPixel];
+                    this._infraredImageData = new ushort[infraredFrameDescription.Width * infraredFrameDescription.Height];
                     this._depthImageData = new ushort[depthFrameDescription.Width * depthFrameDescription.Height];
                     //Console.WriteLine("exist sensor");
                 }
@@ -112,6 +115,7 @@ namespace KinectDataTransmitter
             MultiSourceFrame multiSourceFrame = frameReference.AcquireFrame();
             DepthFrame depthFrame = null;
             ColorFrame colorFrame = null;
+            InfraredFrame infraredFrame = null;
             BodyFrame bodyFrame = null;
 
             try
@@ -124,31 +128,39 @@ namespace KinectDataTransmitter
                     using (multiSourceFrame)
                     {
                         DepthFrameReference depthFrameReference = multiSourceFrame.DepthFrameReference;
+                        InfraredFrameReference infraredFrameReference = multiSourceFrame.InfraredFrameReference;
                         ColorFrameReference colorFrameReference = multiSourceFrame.ColorFrameReference;
-                        BodyFrameReference  bodyFrameReference = multiSourceFrame.BodyFrameReference;
+                        BodyFrameReference bodyFrameReference = multiSourceFrame.BodyFrameReference;
 
                         depthFrame = depthFrameReference.AcquireFrame();
+                        infraredFrame = infraredFrameReference.AcquireFrame();
                         colorFrame = colorFrameReference.AcquireFrame();
                         bodyFrame  = bodyFrameReference.AcquireFrame();
 
                         long frameNumber = -1;
-                        if ((depthFrame != null))
+                        if (depthFrame != null)
                         {
                             ProcessFrame(depthFrame);
 
-                            frameNumber = (depthFrame != null ? depthFrame.RelativeTime : -1);
+                            frameNumber = depthFrame.RelativeTime;
                         }
-                        if ((colorFrame != null))
+                        if (infraredFrame != null)
+                        {
+                            ProcessFrame(infraredFrame);
+
+                            frameNumber = infraredFrame.RelativeTime;
+                        }
+                        if (colorFrame != null)
                         {
                             ProcessFrame(colorFrame);
 
-                            frameNumber = (colorFrame != null ? colorFrame.RelativeTime : -1);
+                            frameNumber = colorFrame.RelativeTime;
                         }
-                        if ((bodyFrame != null))
+                        if (bodyFrame != null)
                         {
                             ProcessFrame(bodyFrame);
 
-                            frameNumber = (bodyFrame != null ? bodyFrame.RelativeTime : -1);
+                            frameNumber = bodyFrame.RelativeTime;
                         }
 
                         if ((depthFrame != null) || (colorFrame != null) || (bodyFrame != null))
@@ -175,6 +187,12 @@ namespace KinectDataTransmitter
                 if (colorFrame != null)
                 {
                     colorFrame.Dispose();
+                    colorFrame = null;
+                }
+
+                if (infraredFrame != null)
+                {
+                    infraredFrame.Dispose();
                     colorFrame = null;
                 }
 
@@ -309,6 +327,17 @@ namespace KinectDataTransmitter
             }
         }
 
+        private void ProcessFrame(InfraredFrame infraredFrame)
+        {
+            if (infraredFrame == null)
+            {
+                return;
+            }
+
+            infraredFrame.CopyFrameDataToArray(this._infraredImageData);
+            _streamWriter.ProcessInfraRedData(_infraredImageData);
+        }
+
         private void ProcessFrame(DepthFrame depthFrame)
         {
             if (depthFrame == null)
@@ -346,20 +375,20 @@ namespace KinectDataTransmitter
                 _skeletonTracker.ProcessData(this.bodies);
             }
 
-            if (IsWritingColorStream)
-            {
-                _streamWriter.ProcessColorData(_colorImageData);
-            }
+            //if (IsWritingColorStream)
+            //{
+            //    _streamWriter.ProcessColorData(_colorImageData);
+            //}
 
-            if (IsWritingDepthStream)
-            {
-                _streamWriter.ProcessDepthData(_depthImageData);
-            }
+            //if (IsWritingDepthStream)
+            //{
+            //    _streamWriter.ProcessDepthData(_depthImageData);
+            //}
 
-            if (IsUsingInfraRedStream)
-            {
-                _streamWriter.ProcessInfraRedData(_colorImageData);
-            }
+            //if (IsUsingInfraRedStream)
+            //{
+            //    _streamWriter.ProcessInfraRedData(_colorImageData);
+            //}
         }
 
         public void OverrideHandTracking(ulong trackingId)

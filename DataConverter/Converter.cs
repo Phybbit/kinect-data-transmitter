@@ -50,11 +50,11 @@ namespace DataConverter
         /// <summary>
         /// The size of the file used to transfer depth data.
         /// </summary>
-        public const long DepthStreamFileSize = 640 * 480 * 2;
+        public const long DepthStreamFileSize = 512 * 424 * 2;
         /// <summary>
         /// The size of the file used to transfer infrared data.
         /// </summary>
-        public const long InfraRedStreamFileSize = 640 * 480 * 2;
+        public const long InfraRedStreamFileSize = 512 * 424 * 2;
         /// <summary>
         /// The code corresponding to "read" access level.
         /// </summary>

@@ -77,9 +77,10 @@ namespace KinectDataTransmitter
             Console.WriteLine(Converter.DepthFrameType);
         }
 
-        public void ProcessInfraRedData(byte[] data)
+        public void ProcessInfraRedData(ushort[] data)
         {
-            using (var accessor = _infraredMemoryMappedFile.CreateViewAccessor(0, data.Length, MemoryMappedFileAccess.Write))
+            const int bytesPerShort = 2;
+            using (var accessor = _infraredMemoryMappedFile.CreateViewAccessor(0, data.Length * bytesPerShort, MemoryMappedFileAccess.Write))
             {
                 accessor.WriteArray(0, data, 0, data.Length);
             }
