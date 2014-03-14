@@ -1,0 +1,1 @@
+Add those files to your unity project to start using the kinect data transmitter.
